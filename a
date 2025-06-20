@@ -4769,7 +4769,7 @@ end)
 
 u.Parent = t
 t.Visible = false
-        local MoveIcon = Library:GetIcon("minimize-2")
+        local MoveIcon = Library:GetIcon("minus")
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
