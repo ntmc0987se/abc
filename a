@@ -4786,7 +4786,7 @@ t.Visible = false
                 Parent = TopBar,
             })
             hid.MouseButton1Click:Connect(function()
-                if not MainFrame.Visible = false then
+                if not MainFrame.Visible == false then
                     t.Visible = false
                 else
                 MainFrame.Visible = false
