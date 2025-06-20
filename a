@@ -4769,8 +4769,6 @@ end)
 
 u.Parent = t
 
-t.Visible = false
-
         local MoveIcon = Library:GetIcon("x")
         if MoveIcon then
             local hid = New("ImageButton", {
@@ -4785,7 +4783,7 @@ t.Visible = false
                 Parent = TopBar,
             })
             hid.MouseButton1Click:Connect(function()
-
+                MainFrame:Destroy()
             end)
         end
         --// Bottom Bar \\--
