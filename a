@@ -4768,12 +4768,15 @@ t.MouseButton1Click:Connect(function()
 end)
 
 u.Parent = t
+
 t.Visible = false
-        local MoveIcon = Library:GetIcon("minus")
+
+        local MoveIcon = "rbxassetid://6031094678"
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Image = MoveIcon.Url,
+                Image = MoveIcon,
+                BackgroundTransparency = 0
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
@@ -4783,8 +4786,11 @@ t.Visible = false
                 Parent = TopBar,
             })
             hid.MouseButton1Click:Connect(function()
+                if not MainFrame.Visible = false then
+                    t.Visible = false
+                else
                 MainFrame.Visible = false
-                t.Visible = true
+                t.Visible = true end
             end)
         end
         --// Bottom Bar \\--
