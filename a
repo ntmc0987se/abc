@@ -4754,7 +4754,7 @@ function Library:CreateWindow(WindowInfo)
                 MainFrame.Visible = not MainFrame.Visible
             end)
         end
-        local ScreenGui = Instance.new("ScreenGui")
+local S = Instance.new("ScreenGui")
 local T = Instance.new("TextButton")
 local U = Instance.new("UICorner")
 
