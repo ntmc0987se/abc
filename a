@@ -4785,7 +4785,7 @@ t.MouseButton1Click:Connect(function()
     end
 end)
 
-UICorner.Parent = TextLabel
+u.Parent = TextLabel
         --// Bottom Bar \\--
         local BottomBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
