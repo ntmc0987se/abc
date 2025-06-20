@@ -4738,8 +4738,6 @@ function Library:CreateWindow(WindowInfo)
         end
 function Library:Dialog(Configs)
     if MainFrame:FindFirstChild("Dialog") then return end
-
-    -- Hỗ trợ cả dạng table positional hoặc named keys
     local DTitle = Configs.Title or Configs[1] or "Dialog"
     local DText = Configs.Text or Configs[2] or "This is a Dialog"
     local DOptions = Configs.Options or Configs[3] or {}
@@ -4893,9 +4891,9 @@ if MoveIcon then
 
     hid.MouseButton1Click:Connect(function()
         Library:Dialog({
-            Title = "Are you sure?",
-            Text = "",
-            Options = {
+            DTitle = "Are you sure?",
+            DText = "",
+            DOptions = {
                 {"Confirm", function()
                     MainFrame:Destroy()
                 end},
