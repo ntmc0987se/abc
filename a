@@ -4785,7 +4785,7 @@ t.MouseButton1Click:Connect(function()
     end
 end)
 
-u.Parent = TextLabel
+u.Parent = t
         --// Bottom Bar \\--
         local BottomBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
