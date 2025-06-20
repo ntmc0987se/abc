@@ -4737,7 +4737,7 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MoveIcon = Library:GetIcon("minimize")
+        local MoveIcon = Library:GetIcon("minimize-2")
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
