@@ -4776,7 +4776,6 @@ t.Visible = false
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 Image = MoveIcon.Url,
-                BackgroundTransparency = 0
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
