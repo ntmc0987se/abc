@@ -4737,11 +4737,11 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MoveIcon = Library:GetIcon("move")
+        local MoveIcon = Library:GetIcon("minimize")
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Image = "rbxassetid://6026568240",
+                Image = MoveIcon.Url,
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
@@ -4776,7 +4776,7 @@ T.MouseButton1Click:function({
             T.Text = "OFF"
         else
             T.Text = "ON"
-
+            
 })
 
 UICorner.Parent = TextLabel
