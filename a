@@ -4741,7 +4741,7 @@ function Library:CreateWindow(WindowInfo)
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Image = "rbxasset://textures/ui/ImageSet/LuaApp/img_set_2x_3.png",
+                Image = "rbxassetid://6026568240",
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
