@@ -4741,7 +4741,7 @@ function Library:CreateWindow(WindowInfo)
         if MoveIcon then
             local hid = New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Image = MoveIcon.Url,
+                Image = "rbxasset://textures/ui/ImageSet/LuaApp/img_set_2x_3.png",
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
@@ -4754,6 +4754,32 @@ function Library:CreateWindow(WindowInfo)
                 MainFrame.Visible = not MainFrame.Visible
             end)
         end
+        local ScreenGui = Instance.new("ScreenGui")
+local T = Instance.new("TextButton")
+local U = Instance.new("UICorner")
+
+S.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+S.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+T.Parent = ScreenGui
+T.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+T.BorderColor3 = Color3.fromRGB(0, 0, 0)
+T.BorderSizePixel = 0
+T.Position = UDim2.new(0.136000007, 0, 0.216000006, 0)
+T.Size = UDim2.new(0, 45, 0, 45)
+T.Font = Enum.Font.FredokaOne
+T.Text = "ON"
+T.TextColor3 = Color3.fromRGB(192, 192, 192)
+T.TextSize = 18.000
+T.MouseButton1Click:function({
+        if T.Text == "ON" then
+            T.Text = "OFF"
+        else
+            T.Text = "ON"
+
+})
+
+UICorner.Parent = TextLabel
         --// Bottom Bar \\--
         local BottomBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
