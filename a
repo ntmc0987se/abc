@@ -4739,7 +4739,7 @@ function Library:CreateWindow(WindowInfo)
 
         local MoveIcon = Library:GetIcon("move")
         if MoveIcon then
-            New("ImageLabel", {
+            New("ImageButton", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 Image = MoveIcon.Url,
                 ImageColor3 = "OutlineColor",
@@ -4751,7 +4751,7 @@ function Library:CreateWindow(WindowInfo)
                 Parent = TopBar,
             })
         end
-            VisibilityButton.MouseButton1Click:Connect(function()
+            MoveIcon.MouseButton1Click:Connect(function()
                 MainFrame.Visible = not MainFrame.Visible
             end)
         --// Bottom Bar \\--
