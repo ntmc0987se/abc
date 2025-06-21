@@ -4755,42 +4755,49 @@ local function Make(Ele, Instance, props, ...)
 	local Element = redzlib.Elements[Ele](Instance, props, ...)
 	return Element
 end
-
+local C = game:GetService("CoreGui")
+local s = Instance.new("ScreenGui")
+local t = Instance.new("TextButton")
+local u = Instance.new("UICorner")
 function Dialogsui()
     if MainFrame:FindFirstChild("Dialog") then return end
     local DTitle = "Are you sure you want to delete this script?"
     local DText =""
     local DOptions = {{"Confirm",function() MainFrame:Destroy() end},{"Cancel", function()end},}
 
-    local Frame = Create("Frame", {
-        Active = true,
-        Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5)
-    }, {
-        Create("TextLabel", {
-            Font = Enum.Font.GothamBold,
-            Size = UDim2.new(1, 0, 0, 20),
-            Text = DTitle,
-            TextXAlignment = "Left",
-            TextColor3 = Color3.new(255, 255, 255),
-            TextSize = 15,
-            Position = UDim2.fromOffset(15, 5),
-            BackgroundTransparency = 1
-        }),
-        Create("TextLabel", {
-            Font = Enum.Font.GothamMedium,
-            Size = UDim2.new(1, -25),
-            AutomaticSize = "Y",
-            Text = DText,
-            TextXAlignment = "Left",
-            TextColor3 = Color3.new(255, 255, 255),
-            TextSize = 12,
-            Position = UDim2.fromOffset(15, 25),
-            BackgroundTransparency = 1,
-            TextWrapped = true
-        })
-    }) Make("Gradient", Frame, {Rotation = 270}) Make("Corner", Frame)
+local Frame = Instance.new("Frame")
+Frame.Active = true
+Frame.Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08)
+Frame.Position = UDim2.fromScale(0.5, 0.5)
+Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) 
+Frame.Parent = C
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Size = UDim2.new(1, 0, 0, 20)
+TitleLabel.Text = DTitle
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+TitleLabel.TextSize = 15
+TitleLabel.Position = UDim2.fromOffset(15, 5)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Parent = Frame
+
+local TextLabel = Instance.new("TextLabel")
+TextLabel.Font = Enum.Font.GothamMedium
+TextLabel.Size = UDim2.new(1, -25, 0, 0)
+TextLabel.AutomaticSize = Enum.AutomaticSize.Y
+TextLabel.Text = DText
+TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+TextLabel.TextColor3 = Color3.new(1, 1, 1)
+TextLabel.TextSize = 12
+TextLabel.Position = UDim2.fromOffset(15, 25)
+TextLabel.BackgroundTransparency = 1
+TextLabel.TextWrapped = true
+TextLabel.Parent = Frame
+    
+    Make("Gradient", Frame, {Rotation = 270}) Make("Corner", Frame)
 
     local ButtonsHolder = Create("Frame", Frame, {
         Size = UDim2.fromScale(1, 0.35),
@@ -4855,12 +4862,6 @@ function Dialogsui()
         Dialog:Button(Btn)
     end
 end
-
-
-local C = game:GetService("CoreGui")
-local s = Instance.new("ScreenGui")
-local t = Instance.new("TextButton")
-local u = Instance.new("UICorner")
 
 s.Parent = C
 s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
