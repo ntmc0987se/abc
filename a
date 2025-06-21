@@ -4814,7 +4814,7 @@ Sdc.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
 Sdc.Size = UDim2.new(1, 0, 1, 0)
 Sdc.Name = "Dialogsui"
 Sdc.Parent = MainFrame
-    Frame.Parent = Sdc
+    Fdc.Parent = Sdc
     CreateTween({Fdc, "Size", UDim2.fromOffset(250, 150), 0.2})
     CreateTween({Fdc, "Transparency", 0, 0.15})
     CreateTween({Sdc, "Transparency", 0.3, 0.15})
