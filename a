@@ -4777,7 +4777,7 @@ Tdc.TextColor3 = Color3.new(1, 1, 1)
 Tdc.TextSize = 15
 Tdc.Position = UDim2.fromOffset(15, 5)
 Tdc.BackgroundTransparency = 1
-Tdc.Parent = Frame
+Tdc.Parent = Fdc
 
 local Tsb = Instance.new("TextLabel")
 Tsb.Font = Enum.Font.GothamMedium
@@ -4790,7 +4790,7 @@ Tsb.TextSize = 12
 Tsb.Position = UDim2.fromOffset(15, 25)
 Tsb.BackgroundTransparency = 1
 Tsb.TextWrapped = true
-Tsb.Parent = Frame
+Tsb.Parent = Fdc
 
 local Bdc = Instance.new("Frame")
 Bdc.Size = UDim2.fromScale(1, 0.35)
@@ -4798,7 +4798,7 @@ Bdc.Position = UDim2.fromScale(0, 1)
 Bdc.AnchorPoint = Vector2.new(0, 1)
 Bdc.BackgroundColor3 = Color3.new(0, 0, 0)
 Bdc.BackgroundTransparency = 1
-Bdc.Parent = Frame
+Bdc.Parent = Fdc
 
 local Layout = Instance.new("UIListLayout")
 Layout.Padding = UDim.new(0, 10)
