@@ -4754,73 +4754,74 @@ end
 
 local C = game:GetService("CoreGui")
 function Dialogsui()
-    if MainFrame:FindFirstChild("Dialog") then return end
-    local DTitle = "Are you sure you want to delete this script?"
-    local DText =""
-    local DOptions = {{"Confirm",function() MainFrame:Destroy() end},{"Cancel", function()end},}
+    if MainFrame:FindFirstChild("Dialogsui") then return end
+    local DTitle = "You want to close this script?"
+    local DText ="Are you sure ?"
+    local DOptions = {"Confirm",function() MainFrame:Destroy() end},{"Cancel", function()end}
+local abc = Instance.new("UICorner")
+local abcd = Instance.new("UICorner")
+local Fdc = Instance.new("Frame")
+Fdc.Active = true
+Fdc.Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08)
+FdcPosition = UDim2.fromScale(0.5, 0.5)
+Fdc.AnchorPoint = Vector2.new(0.5, 0.5)
+Fdc.BackgroundColor3 = Color3.fromRGB(30, 30, 30) 
+Fdc.Parent = C
+abc.Parent = Fdc
+local Tdc = Instance.new("TextLabel")
+Tdc.Font = Enum.Font.GothamBold
+Tdc.Size = UDim2.new(1, 0, 0, 20)
+Tdc.Text = DTitle
+Tdc.TextXAlignment = Enum.TextXAlignment.Left
+Tdc.TextColor3 = Color3.new(1, 1, 1)
+Tdc.TextSize = 15
+Tdc.Position = UDim2.fromOffset(15, 5)
+Tdc.BackgroundTransparency = 1
+Tdc.Parent = Frame
 
-local Frame = Instance.new("Frame")
-Frame.Active = true
-Frame.Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08)
-Frame.Position = UDim2.fromScale(0.5, 0.5)
-Frame.AnchorPoint = Vector2.new(0.5, 0.5)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) 
-Frame.Parent = C
+local Tsb = Instance.new("TextLabel")
+Tsb.Font = Enum.Font.GothamMedium
+Tsb.Size = UDim2.new(1, -25, 0, 0)
+Tsb.AutomaticSize = Enum.AutomaticSize.Y
+Tsb.Text = DText
+Tsb.TextXAlignment = Enum.TextXAlignment.Left
+Tsb.TextColor3 = Color3.new(1, 1, 1)
+Tsb.TextSize = 12
+Tsb.Position = UDim2.fromOffset(15, 25)
+Tsb.BackgroundTransparency = 1
+Tsb.TextWrapped = true
+Tsb.Parent = Frame
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Size = UDim2.new(1, 0, 0, 20)
-TitleLabel.Text = DTitle
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.TextColor3 = Color3.new(1, 1, 1)
-TitleLabel.TextSize = 15
-TitleLabel.Position = UDim2.fromOffset(15, 5)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Parent = Frame
-
-local TextLabel = Instance.new("TextLabel")
-TextLabel.Font = Enum.Font.GothamMedium
-TextLabel.Size = UDim2.new(1, -25, 0, 0)
-TextLabel.AutomaticSize = Enum.AutomaticSize.Y
-TextLabel.Text = DText
-TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextSize = 12
-TextLabel.Position = UDim2.fromOffset(15, 25)
-TextLabel.BackgroundTransparency = 1
-TextLabel.TextWrapped = true
-TextLabel.Parent = Frame
-
-local ButtonsHolder = Instance.new("Frame")
-ButtonsHolder.Size = UDim2.fromScale(1, 0.35)
-ButtonsHolder.Position = UDim2.fromScale(0, 1)
-ButtonsHolder.AnchorPoint = Vector2.new(0, 1)
-ButtonsHolder.BackgroundColor3 = Color3.new(0, 0, 0)
-ButtonsHolder.BackgroundTransparency = 1
-ButtonsHolder.Parent = Frame
+local Bdc = Instance.new("Frame")
+Bdc.Size = UDim2.fromScale(1, 0.35)
+Bdc.Position = UDim2.fromScale(0, 1)
+Bdc.AnchorPoint = Vector2.new(0, 1)
+Bdc.BackgroundColor3 = Color3.new(0, 0, 0)
+Bdc.BackgroundTransparency = 1
+Bdc.Parent = Frame
 
 local Layout = Instance.new("UIListLayout")
 Layout.Padding = UDim.new(0, 10)
 Layout.VerticalAlignment = Enum.VerticalAlignment.Center
 Layout.FillDirection = Enum.FillDirection.Horizontal
 Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Layout.Parent = ButtonsHolder
+Layout.Parent = Bdc
 
-local Screen = Instance.new("Frame")
-Screen.BackgroundTransparency = 0.6
-Screen.Active = true
-Screen.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
-Screen.Size = UDim2.new(1, 0, 1, 0)
-Screen.Name = "Dialog"
-Screen.Parent = MainFrame
-    Frame.Parent = Screen
-    CreateTween({Frame, "Size", UDim2.fromOffset(250, 150), 0.2})
-    CreateTween({Frame, "Transparency", 0, 0.15})
-    CreateTween({Screen, "Transparency", 0.3, 0.15})
+local Sdc = Instance.new("Frame")
+Sdc.BackgroundTransparency = 0.6
+Sdc.Active = true
+Sdc.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+Sdc.Size = UDim2.new(1, 0, 1, 0)
+Sdc.Name = "Dialogsui"
+Sdc.Parent = MainFrame
+    Frame.Parent = Sdc
+    CreateTween({Fdc, "Size", UDim2.fromOffset(250, 150), 0.2})
+    CreateTween({Fdc, "Transparency", 0, 0.15})
+    CreateTween({Sdc, "Transparency", 0.3, 0.15})
 
-    local ButtonCount, Dialog = 0, {}
+    local ButtonCount, Dialogsui = 0, {}
 
-    function Dialog:Button(Configs)
+    function Dialogsui:Button(Configs)
         local Name = Configs.Name or Configs.Title or Configs[1] or ""
         local Callback = Configs.Callback or Configs[2] or function()end
 
@@ -4838,19 +4839,19 @@ Screen.Parent = MainFrame
             end
         end
 
-        Button.Activated:Connect(Dialog.Close)
+        Button.Activated:Connect(Dialogsui.Close)
         Button.Activated:Connect(Callback)
     end
 
-    function Dialog:Close()
-        CreateTween({Frame, "Size", UDim2.fromOffset(250 * 1.08, 150 * 1.08), 0.2})
-        CreateTween({Screen, "Transparency", 1, 0.15})
-        CreateTween({Frame, "Transparency", 1, 0.15, true})
-        Screen:Destroy()
+    function Dialogsui:Close()
+        CreateTween({Fdc, "Size", UDim2.fromOffset(250 * 1.08, 150 * 1.08), 0.2})
+        CreateTween({Sdc, "Transparency", 1, 0.15})
+        CreateTween({Fdc, "Transparency", 1, 0.15, true})
+        Sdc:Destroy()
     end
 
     for _, Btn in ipairs(DOptions) do
-        Dialog:Button(Btn)
+        Dialogsui:Button(Btn)
     end
 end
 local s = Instance.new("ScreenGui")
@@ -4882,8 +4883,6 @@ t.MouseButton1Click:Connect(function()
         MainFrame.Visible = true
     end
 end)
-
-u.Parent = t
 
 local MoveIcon = Library:GetIcon("x")
 if MoveIcon then
