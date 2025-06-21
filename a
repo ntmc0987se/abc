@@ -4760,7 +4760,7 @@ s.Parent = C
 s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 t.Parent = s
-t.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+t.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 t.BorderColor3 = Color3.fromRGB(0, 0, 0)
 t.BorderSizePixel = 0
 t.Position = UDim2.new(0.136, 0, 0.216, 0)
