@@ -4785,7 +4785,7 @@ end)
 function Dialogsui()
     if MainFrame:FindFirstChild("Dialogsui") then return end
     local DTitle = "You want to close this script?"
-    local DText ="Are you sure ?"
+    local DText ="This action can't be undone. Are you sure?"
     local DOptions = {
         {"Confirm", function() MainFrame:Destroy() s:Destroy() end},
         {"Cancel", function() end}
