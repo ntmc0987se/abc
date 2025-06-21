@@ -4753,12 +4753,41 @@ function Library:CreateWindow(WindowInfo)
 end
 
 local C = game:GetService("CoreGui")
+local s = Instance.new("ScreenGui")
+local t = Instance.new("TextButton")
+local u = Instance.new("UICorner")
+s.Parent = C
+s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+t.Parent = s
+t.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+t.BorderColor3 = Color3.fromRGB(0, 0, 0)
+t.BorderSizePixel = 0
+t.Position = UDim2.new(0.136, 0, 0.216, 0)
+t.Size = UDim2.new(0, 45, 0, 45)
+t.Font = Enum.Font.FredokaOne
+t.Text = "ON"
+t.TextColor3 = Color3.fromRGB(192, 192, 192)
+t.TextSize = 18.000
+t.Draggable = true
+
+u.Parent = t
+
+t.MouseButton1Click:Connect(function()
+    if t.Text == "ON" then
+        t.Text = "OFF"
+        MainFrame.Visible = false
+    else
+        t.Text = "ON"
+        MainFrame.Visible = true
+    end
+end)
 function Dialogsui()
     if MainFrame:FindFirstChild("Dialogsui") then return end
     local DTitle = "You want to close this script?"
     local DText ="Are you sure ?"
     local DOptions = {
-        {"Confirm", function() MainFrame:Destroy() end},
+        {"Confirm", function() MainFrame:Destroy() s:Destroy() end},
         {"Cancel", function() end}
     }
 
@@ -4862,35 +4891,7 @@ function Dialogsui()
         Dialogsui:Button(Btn)
     end
 end
-local s = Instance.new("ScreenGui")
-local t = Instance.new("TextButton")
-local u = Instance.new("UICorner")
-s.Parent = C
-s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-t.Parent = s
-t.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-t.BorderColor3 = Color3.fromRGB(0, 0, 0)
-t.BorderSizePixel = 0
-t.Position = UDim2.new(0.136, 0, 0.216, 0)
-t.Size = UDim2.new(0, 45, 0, 45)
-t.Font = Enum.Font.FredokaOne
-t.Text = "ON"
-t.TextColor3 = Color3.fromRGB(192, 192, 192)
-t.TextSize = 18.000
-t.Draggable = true
-
-u.Parent = t
-
-t.MouseButton1Click:Connect(function()
-    if t.Text == "ON" then
-        t.Text = "OFF"
-        MainFrame.Visible = false
-    else
-        t.Text = "ON"
-        MainFrame.Visible = true
-    end
-end)
 
 local MoveIcon = Library:GetIcon("x")
 if MoveIcon then
