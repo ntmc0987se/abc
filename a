@@ -4755,6 +4755,9 @@ local function Make(Ele, Instance, props, ...)
 	local Element = redzlib.Elements[Ele](Instance, props, ...)
 	return Element
 end
+function InsertTheme(object, theme_id)
+    return object
+end
 function Dialogsui()
     if MainFrame:FindFirstChild("Dialog") then return end
     local DTitle = "Are you sure you want to delete this script?"
