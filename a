@@ -4838,7 +4838,7 @@ function Dialogsui:Button(Configs)
     Bdcc.Parent = Bdc
 
     local Cdc = Instance.new("UICorner")
-    Cdc.Parent = Button
+    Cdc.Parent = Bdcc
 
     for _, Btn in pairs(Bdc:GetChildren()) do
         if Btn:IsA("TextButton") then
