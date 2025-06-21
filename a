@@ -4821,38 +4821,35 @@ Sdc.Parent = MainFrame
 
     local ButtonCount, Dialogsui = 0, {}
 
-    function Dialogsui:Button(Configs)
-        local Name = Configs.Name or Configs.Title or Configs[1] or ""
-        local Callback = Configs.Callback or Configs[2] or function()end
+function Dialogsui:Button(Configs)
+    local Name = Configs.Name or Configs.Title or Configs[1] or ""
+    local Callback = Configs.Callback or Configs[2] or function() end
 
-        ButtonCount = ButtonCount + 1
-        SetProps(Button, {
-            Text = Name,
-            Font = Enum.Font.GothamBold,
-            TextColor3 = Color3.new(255, 255, 255),
-            TextSize = 12
-        })
+    ButtonCount = ButtonCount + 1
 
-        for _, Btn in pairs(ButtonsHolder:GetChildren()) do
-            if Btn:IsA("TextButton") then
-                Btn.Size = UDim2.new(1 / ButtonCount, -(((ButtonCount - 1) * 20) / ButtonCount), 0, 32)
-            end
+    local Bdcc = Instance.new("TextButton")
+    Bdcc.Text = Name
+    Bdcc.Font = Enum.Font.GothamBold
+    Bdcc.TextColor3 = Color3.new(1, 1, 1)
+    Bdcc.TextSize = 12
+    Bdcc.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    Bdcc.Size = UDim2.new(1 / ButtonCount, -(((ButtonCount - 1) * 20) / ButtonCount), 0, 32)
+    Bdcc.AutoButtonColor = true
+    Bdcc.Parent = Bdc
+
+    local Cdc = Instance.new("UICorner")
+    Cdc.Parent = Button
+
+    for _, Btn in pairs(Bdc:GetChildren()) do
+        if Btn:IsA("TextButton") then
+            Btn.Size = UDim2.new(1 / ButtonCount, -(((ButtonCount - 1) * 20) / ButtonCount), 0, 32)
         end
-
-        Button.Activated:Connect(Dialogsui.Close)
-        Button.Activated:Connect(Callback)
     end
 
-    function Dialogsui:Close()
-        CreateTween({Fdc, "Size", UDim2.fromOffset(250 * 1.08, 150 * 1.08), 0.2})
-        CreateTween({Sdc, "Transparency", 1, 0.15})
-        CreateTween({Fdc, "Transparency", 1, 0.15, true})
-        Sdc:Destroy()
-    end
+    Button.Activated:Connect(Dialogsui.Close)
+    Button.Activated:Connect(Callback)
+end
 
-    for _, Btn in ipairs(DOptions) do
-        Dialogsui:Button(Btn)
-    end
 end
 local s = Instance.new("ScreenGui")
 local t = Instance.new("TextButton")
