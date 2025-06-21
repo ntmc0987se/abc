@@ -4769,7 +4769,7 @@ t.Font = Enum.Font.FredokaOne
 t.Text = "ON"
 t.TextColor3 = Color3.fromRGB(192, 192, 192)
 t.TextSize = 18.000
-t.Draggable = true
+s.Draggable = true
 
 u.Parent = t
 
