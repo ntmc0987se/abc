@@ -4751,11 +4751,9 @@ function Library:CreateWindow(WindowInfo)
 	end
 	return Tween
 end
-local function AddEle(Name, Func)
-	redzlib.Elements[Name] = Func
-end
-local function Make(Ele, Instance, props, ...)
-	local Element = redzlib.Elements[Ele](Instance, props, ...)
+
+function Make(Ele, Instance, props, ...)
+	local Element = [Ele](Instance, props, ...)
 	return Element
 end
 local C = game:GetService("CoreGui")
