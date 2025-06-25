@@ -4753,20 +4753,36 @@ function Library:CreateWindow(WindowInfo)
 	end
 	return Tween
 end
+local currentTween = nil
+local tweening = false
+
 local function HideWithTween(frame)
-    if not frame.Visible then return end
+    if tweening then return end
+    tweening = true
+
     if not frame:GetAttribute("OriginalSize") then
         frame:SetAttribute("OriginalSize", frame.Size)
     end
-    CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.325, true})
-    frame.Visible = false
+
+    currentTween = CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.275})
+    currentTween.Completed:Connect(function()
+        frame.Visible = false
+        tweening = false
+    end)
 end
 
 local function ShowWithTween(frame)
+    if tweening then return end
+    tweening = true
+
     local targetSize = frame:GetAttribute("OriginalSize") or UDim2.new(0, 300, 0, 300)
     frame.Size = UDim2.new(0, 0, 0, 0)
     frame.Visible = true
-    CreateTween({frame, "Size", targetSize, 0.325})
+
+    currentTween = CreateTween({frame, "Size", targetSize, 0.275})
+    currentTween.Completed:Connect(function()
+        tweening = false
+    end)
 end
 local C = game:GetService("CoreGui")
 local s = Instance.new("ScreenGui")
