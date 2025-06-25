@@ -4754,34 +4754,31 @@ function Library:CreateWindow(WindowInfo)
 	return Tween
 end
 local currentTween = nil
-local tweening = false
+local isVisible = true
 
-local function HideWithTween(frame)
-    if tweening then return end
-    tweening = true
-
-    if not frame:GetAttribute("OriginalSize") then
-        frame:SetAttribute("OriginalSize", frame.Size)
+local function CancelCurrentTween()
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+        currentTween:Cancel()
     end
-
-    currentTween = CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.2})
-    currentTween.Completed:Connect(function()
-        frame.Visible = false
-        tweening = false
-    end)
 end
 
-local function ShowWithTween(frame)
-    if tweening then return end
-    tweening = true
-
-    local targetSize = frame:GetAttribute("OriginalSize") or UDim2.new(0, 300, 0, 300)
-    frame.Size = UDim2.new(0, 0, 0, 0)
+local function AnimateShow(frame)
+    CancelCurrentTween()
+    local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
+    frame:SetAttribute("OriginalSize", targetSize)
     frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    currentTween = CreateTween({frame, "Size", targetSize, 0.325})
+end
 
-    currentTween = CreateTween({frame, "Size", targetSize, 0.2})
-    currentTween.Completed:Connect(function()
-        tweening = false
+local function AnimateHide(frame)
+    CancelCurrentTween()
+    local currentSize = frame.Size
+    local tween = TweenService:Create(frame, TweenInfo.new(0.325, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0)})
+    tween:Play()
+    currentTween = tween
+    tween.Completed:Connect(function()
+        frame.Visible = false
     end)
 end
 local C = game:GetService("CoreGui")
@@ -4806,12 +4803,12 @@ t.Draggable = true
 u.Parent = t
 
 t.MouseButton1Click:Connect(function()
-    if t.Text == "ON" then
-        t.Text = "OFF"
-        HideWithTween(MainFrame)
+    isVisible = not isVisible
+    t.Text = isVisible and "ON" or "OFF"
+    if isVisible then
+        AnimateShow(MainFrame)
     else
-        t.Text = "ON"
-        ShowWithTween(MainFrame)
+        AnimateHide(MainFrame)
     end
 end)
 function Dialogsui()
