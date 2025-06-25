@@ -4764,7 +4764,7 @@ local function HideWithTween(frame)
         frame:SetAttribute("OriginalSize", frame.Size)
     end
 
-    currentTween = CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.275})
+    currentTween = CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.225})
     currentTween.Completed:Connect(function()
         frame.Visible = false
         tweening = false
@@ -4779,7 +4779,7 @@ local function ShowWithTween(frame)
     frame.Size = UDim2.new(0, 0, 0, 0)
     frame.Visible = true
 
-    currentTween = CreateTween({frame, "Size", targetSize, 0.275})
+    currentTween = CreateTween({frame, "Size", targetSize, 0.225})
     currentTween.Completed:Connect(function()
         tweening = false
     end)
