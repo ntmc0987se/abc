@@ -4758,7 +4758,7 @@ local function HideWithTween(frame)
     if not frame:GetAttribute("OriginalSize") then
         frame:SetAttribute("OriginalSize", frame.Size)
     end
-    CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.5, true})
+    CreateTween({frame, "Size", UDim2.new(0, 0, 0, 0), 0.325, true})
     frame.Visible = false
 end
 
@@ -4766,7 +4766,7 @@ local function ShowWithTween(frame)
     local targetSize = frame:GetAttribute("OriginalSize") or UDim2.new(0, 300, 0, 300)
     frame.Size = UDim2.new(0, 0, 0, 0)
     frame.Visible = true
-    CreateTween({frame, "Size", targetSize, 0.5})
+    CreateTween({frame, "Size", targetSize, 0.325})
 end
 local C = game:GetService("CoreGui")
 local s = Instance.new("ScreenGui")
