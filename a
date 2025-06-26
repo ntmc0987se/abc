@@ -4753,101 +4753,68 @@ function Library:CreateWindow(WindowInfo)
 	end
 	return Tween
 end
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-
 local currentTween = nil
 local isVisible = true
 
--- Improved tween cancellation with cleanup
+local TweenService = game:GetService("TweenService")
+
 local function CancelCurrentTween()
-    if currentTween then
-        if currentTween.PlaybackState == Enum.PlaybackState.Playing then
-            currentTween:Cancel()
-        end
-        currentTween:Destroy()
-        currentTween = nil 
-    end
+	if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+		currentTween:Cancel()
+		currentTween = nil
+	end
 end
 
--- Enhanced tween creation with better easing and timing
-local function CreateAndPlayTween(instance, time, style, direction, properties, callback)
-    local tweenInfo = TweenInfo.new(
-        time, 
-        style, 
-        direction,
-        0, -- RepeatCount
-        false, -- Reverses
-        0 -- DelayTime
-    )
-    local tween = TweenService:Create(instance, tweenInfo, properties)
-    tween:Play()
-    
-    if callback then
-        tween.Completed:Connect(function(playbackState)
-            if playbackState == Enum.PlaybackState.Completed then
-                callback()
-            end
-        end)
-    end
-    
-    return tween
+local function CreateAndPlayTween(instance, tweenInfo, properties, callback)
+	local tween = TweenService:Create(instance, tweenInfo, properties)
+	tween:Play()
+	if callback then
+		tween.Completed:Connect(function(playbackState)
+			if playbackState == Enum.PlaybackState.Completed then
+				callback()
+			end
+		end)
+	end
+	return tween
 end
 
--- Modern show animation with bounce effect
 local function AnimateShow(frame)
-    CancelCurrentTween()
-    
-    -- Store original size if not stored
-    if not frame:GetAttribute("OriginalSize") then
-        frame:SetAttribute("OriginalSize", frame.Size)
-    end
-    
-    local targetSize = frame:GetAttribute("OriginalSize")
-    
-    -- Make frame visible immediately
-    frame.Visible = true
-    frame.Size = UDim2.new(0, 0, 0, 0)
-    frame.BackgroundTransparency = 1
-    
-    -- Create sequence of animations for modern feel
-    -- First: Quick scale up with overshoot
-    currentTween = CreateAndPlayTween(
-        frame, 
-        0.45, 
-        Enum.EasingStyle.Back, 
-        Enum.EasingDirection.Out,
-        {
-            Size = targetSize,
-            BackgroundTransparency = 0
-        }
-    )
+	CancelCurrentTween()
+
+	if not frame:GetAttribute("OriginalSize") then
+		frame:SetAttribute("OriginalSize", frame.Size)
+	end
+
+	local targetSize = frame:GetAttribute("OriginalSize")
+
+	frame.Visible = true
+	frame.Size = UDim2.new(0.8, 0, 0.8, 0)
+	frame.BackgroundTransparency = 1
+	frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+
+	local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+
+	currentTween = CreateAndPlayTween(frame, tweenInfo, {
+		Size = targetSize,
+		BackgroundTransparency = 0,
+		Position = UDim2.new(0, 0, 0, 0),
+	})
 end
 
--- Modern hide animation with smooth fade
 local function AnimateHide(frame)
-    CancelCurrentTween()
-    
-    local targetSize = UDim2.new(0, 0, 0, 0)
-    
-    -- Smooth scale down with fade
-    currentTween = CreateAndPlayTween(
-        frame, 
-        0.35, 
-        Enum.EasingStyle.Quart, 
-        Enum.EasingDirection.InOut,
-        {
-            Size = targetSize,
-            BackgroundTransparency = 1
-        }, 
-        function()
-            frame.Visible = false
-            frame.BackgroundTransparency = 0 -- Reset for next show
-        end
-    )
+	CancelCurrentTween()
+
+	local tweenInfo = TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
+
+	currentTween = CreateAndPlayTween(frame, tweenInfo, {
+		Size = UDim2.new(0.8, 0, 0.8, 0),
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0.1, 0, 0.1, 0)
+	}, function()
+		frame.Visible = false
+	end)
 end
 
--- GUI Setup
 local C = game:GetService("CoreGui")
 local s = Instance.new("ScreenGui")
 local t = Instance.new("TextButton")
@@ -4871,11 +4838,9 @@ t.Draggable = true
 u.Parent = t
 u.CornerRadius = UDim.new(0, 8)
 
--- Enhanced button interaction with modern feel
 local buttonHoverTween = nil
 local buttonClickTween = nil
 
--- Button hover effects
 t.MouseEnter:Connect(function()
     if buttonHoverTween then buttonHoverTween:Cancel() end
     buttonHoverTween = CreateAndPlayTween(
@@ -4904,7 +4869,6 @@ t.MouseLeave:Connect(function()
     )
 end)
 
--- Button click animation
 t.MouseButton1Down:Connect(function()
     if buttonClickTween then buttonClickTween:Cancel() end
     buttonClickTween = CreateAndPlayTween(
@@ -4931,7 +4895,6 @@ t.MouseButton1Up:Connect(function()
     )
 end)
 
--- Main toggle functionality
 t.MouseButton1Click:Connect(function()
     isVisible = not isVisible
     t.Text = isVisible and "ON" or "OFF"
