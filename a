@@ -4785,7 +4785,7 @@ local function AnimateShow(frame)
 		frame:SetAttribute("OriginalSize", frame.Size)
 	end
 
-	local targetSize = frame:GetAttribute("OriginalSize")
+	local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
 
 	frame.Visible = true
 	frame.Size = UDim2.new(0.8, 0, 0.8, 0)
