@@ -4776,7 +4776,20 @@ local function CreateAndPlayTween(instance, time, style, properties, callback)
     
     return tween
 end
+local function AnimateShow(frame)
+    CancelCurrentTween() 
 
+    if not frame:GetAttribute("OriginalSize") then
+        frame:SetAttribute("OriginalSize", frame.Size)
+    end
+    
+    local targetSize = frame:GetAttribute("OriginalSize")
+
+    frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0) 
+
+    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quint, {Size = targetSize})
+end
 local function AnimateHide(frame)
     CancelCurrentTween()
     local targetSize = UDim2.new(0, 0, 0, 0)
