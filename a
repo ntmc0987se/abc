@@ -4753,73 +4753,105 @@ function Library:CreateWindow(WindowInfo)
 	end
 	return Tween
 end
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
 local currentTween = nil
 local isVisible = true
 
--- Hàm kiểm tra xem có phải thiết bị di động không
-local function IsMobileDevice()
-    return UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-end
-
--- Hàm căn giữa frame trên màn hình
-local function CenterFrame(frame)
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-end
-
--- Hàm tạo và chạy tween
-local function CreateAndPlayTween(frame, duration, easingStyle, properties, completed)
-    local tweenInfo = TweenInfo.new(duration, easingStyle)
-    local tween = TweenService:Create(frame, tweenInfo, properties)
-    if completed then
-        tween.Completed:Connect(completed)
+-- Improved tween cancellation with cleanup
+local function CancelCurrentTween()
+    if currentTween then
+        if currentTween.PlaybackState == Enum.PlaybackState.Playing then
+            currentTween:Cancel()
+        end
+        currentTween:Destroy()
+        currentTween = nil 
     end
+end
+
+-- Enhanced tween creation with better easing and timing
+local function CreateAndPlayTween(instance, time, style, direction, properties, callback)
+    local tweenInfo = TweenInfo.new(
+        time, 
+        style, 
+        direction,
+        0, -- RepeatCount
+        false, -- Reverses
+        0 -- DelayTime
+    )
+    local tween = TweenService:Create(instance, tweenInfo, properties)
     tween:Play()
+    
+    if callback then
+        tween.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                callback()
+            end
+        end)
+    end
+    
     return tween
 end
 
--- Hàm hủy tween hiện tại nếu có
-local function CancelCurrentTween()
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-end
-
--- Hàm animation hiển thị GUI
+-- Modern show animation with bounce effect
 local function AnimateShow(frame)
     CancelCurrentTween()
     
+    -- Store original size if not stored
     if not frame:GetAttribute("OriginalSize") then
         frame:SetAttribute("OriginalSize", frame.Size)
     end
     
     local targetSize = frame:GetAttribute("OriginalSize")
     
+    -- Make frame visible immediately
     frame.Visible = true
-    frame.Size = UDim2.new(0, 1, 0, 1) -- Kích thước nhỏ ban đầu
-    CenterFrame(frame) -- Căn giữa trước khi animation
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.BackgroundTransparency = 1
     
-    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quint, {Size = targetSize})
+    -- Create sequence of animations for modern feel
+    -- First: Quick scale up with overshoot
+    currentTween = CreateAndPlayTween(
+        frame, 
+        0.45, 
+        Enum.EasingStyle.Back, 
+        Enum.EasingDirection.Out,
+        {
+            Size = targetSize,
+            BackgroundTransparency = 0
+        }
+    )
 end
 
--- Hàm animation ẩn GUI
+-- Modern hide animation with smooth fade
 local function AnimateHide(frame)
     CancelCurrentTween()
+    
     local targetSize = UDim2.new(0, 0, 0, 0)
-    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quad, {Size = targetSize}, function()
-        frame.Visible = false
-    end)
+    
+    -- Smooth scale down with fade
+    currentTween = CreateAndPlayTween(
+        frame, 
+        0.35, 
+        Enum.EasingStyle.Quart, 
+        Enum.EasingDirection.InOut,
+        {
+            Size = targetSize,
+            BackgroundTransparency = 1
+        }, 
+        function()
+            frame.Visible = false
+            frame.BackgroundTransparency = 0 -- Reset for next show
+        end
+    )
 end
 
--- Cài đặt GUI
+-- GUI Setup
 local C = game:GetService("CoreGui")
 local s = Instance.new("ScreenGui")
 local t = Instance.new("TextButton")
 local u = Instance.new("UICorner")
-local MainFrame = Instance.new("Frame") -- Giả sử đây là frame chính cần animation
 
 s.Parent = C
 s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -4828,26 +4860,83 @@ t.Parent = s
 t.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 t.BorderColor3 = Color3.fromRGB(0, 0, 0)
 t.BorderSizePixel = 0
+t.Position = UDim2.new(0.136, 0, 0.216, 0)
 t.Size = UDim2.new(0, 45, 0, 45)
 t.Font = Enum.Font.FredokaOne
 t.Text = "ON"
 t.TextColor3 = Color3.fromRGB(192, 192, 192)
 t.TextSize = 18.000
 t.Draggable = true
-CenterFrame(t) -- Căn giữa nút điều khiển
 
 u.Parent = t
+u.CornerRadius = UDim.new(0, 8)
 
-MainFrame.Parent = s
-MainFrame.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-MainFrame.Size = UDim2.new(0, 200, 0, 100)
-CenterFrame(MainFrame) -- Căn giữa frame chính
-MainFrame.Visible = false
+-- Enhanced button interaction with modern feel
+local buttonHoverTween = nil
+local buttonClickTween = nil
 
--- Sự kiện nhấp chuột
+-- Button hover effects
+t.MouseEnter:Connect(function()
+    if buttonHoverTween then buttonHoverTween:Cancel() end
+    buttonHoverTween = CreateAndPlayTween(
+        t, 
+        0.15, 
+        Enum.EasingStyle.Quad, 
+        Enum.EasingDirection.Out,
+        {
+            BackgroundColor3 = Color3.fromRGB(65, 65, 65),
+            Size = UDim2.new(0, 47, 0, 47)
+        }
+    )
+end)
+
+t.MouseLeave:Connect(function()
+    if buttonHoverTween then buttonHoverTween:Cancel() end
+    buttonHoverTween = CreateAndPlayTween(
+        t, 
+        0.15, 
+        Enum.EasingStyle.Quad, 
+        Enum.EasingDirection.Out,
+        {
+            BackgroundColor3 = Color3.fromRGB(50, 50, 50),
+            Size = UDim2.new(0, 45, 0, 45)
+        }
+    )
+end)
+
+-- Button click animation
+t.MouseButton1Down:Connect(function()
+    if buttonClickTween then buttonClickTween:Cancel() end
+    buttonClickTween = CreateAndPlayTween(
+        t, 
+        0.08, 
+        Enum.EasingStyle.Quad, 
+        Enum.EasingDirection.Out,
+        {
+            Size = UDim2.new(0, 43, 0, 43)
+        }
+    )
+end)
+
+t.MouseButton1Up:Connect(function()
+    if buttonClickTween then buttonClickTween:Cancel() end
+    buttonClickTween = CreateAndPlayTween(
+        t, 
+        0.12, 
+        Enum.EasingStyle.Back, 
+        Enum.EasingDirection.Out,
+        {
+            Size = UDim2.new(0, 47, 0, 47)
+        }
+    )
+end)
+
+-- Main toggle functionality
 t.MouseButton1Click:Connect(function()
     isVisible = not isVisible
     t.Text = isVisible and "ON" or "OFF"
+    t.TextColor3 = isVisible and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(255, 120, 120)
+    
     if isVisible then
         AnimateShow(MainFrame)
     else
