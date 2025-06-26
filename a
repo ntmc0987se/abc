@@ -4753,86 +4753,55 @@ function Library:CreateWindow(WindowInfo)
 	end
 	return Tween
 end
-local TweenService = game:GetService("TweenService")
+local currentTween = nil
+local isVisible = true
 
--- mỗi frame sẽ có 1 tween đang chạy
-local activeTweens = {}
--- lưu size gốc của mỗi frame
-local originalSizes = {}
-
-local function stopTween(frame)
-    local tw = activeTweens[frame]
-    if tw then
-        tw:Cancel()
-        activeTweens[frame] = nil
+local function CancelCurrentTween()
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+        currentTween:Cancel()
     end
+    currentTween = nil
 end
 
-local function playTween(frame, time, style, direction, props, onComplete)
-    local info = TweenInfo.new(time, style, direction, 0, false, 0)
-    local tw = TweenService:Create(frame, info, props)
-    activeTweens[frame] = tw
-    tw.Completed:Connect(function(state)
-        activeTweens[frame] = nil
-        if state == Enum.PlaybackState.Completed and onComplete then
-            onComplete()
-        end
-    end)
-    tw:Play()
-    return tw
+local function CreateAndPlayTween(instance, time, style, properties, callback)
+    local tweenInfo = TweenInfo.new(time, style)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    if callback then
+        tween.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                callback()
+            end
+            currentTween = nil
+        end)
+    else
+        tween.Completed:Connect(function()
+            currentTween = nil
+        end)
+    end
+    return tween
 end
 
 local function AnimateShow(frame)
-    stopTween(frame)
-
-    -- lưu size gốc
-    if not originalSizes[frame] then
-        originalSizes[frame] = frame.Size
+    CancelCurrentTween()
+    
+    if not frame:GetAttribute("OriginalSize") then
+        frame:SetAttribute("OriginalSize", frame.Size)
     end
-    local origSize = originalSizes[frame]
-
-    -- giữ lại vị trí và AnchorPoint cũ
-    local oldAP = frame.AnchorPoint
-    local oldPos = frame.Position
-
-    -- bật visible, đặt small + trong suốt
+    
+    local targetSize = frame:GetAttribute("OriginalSize")
+    
     frame.Visible = true
-    frame.Size = UDim2.new(origSize.X.Scale * 0.7, origSize.X.Offset * 0.7,
-                           origSize.Y.Scale * 0.7, origSize.Y.Offset * 0.7)
-    frame.BackgroundTransparency = 1
-
-    -- để scale từ trung tâm
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.Position = oldPos + UDim2.new(origSize.X.Scale * (oldAP.X-0.5),
-                                        origSize.X.Offset * (oldAP.X-0.5),
-                                        origSize.Y.Scale * (oldAP.Y-0.5),
-                                        origSize.Y.Offset * (oldAP.Y-0.5))
-
-    -- tween về size gốc + backgroundOpaque
-    playTween(frame, 0.45, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out, {
-        Size = origSize,
-        BackgroundTransparency = 0
-    }, function()
-        -- phục hồi vị trí & anchor
-        frame.AnchorPoint = oldAP
-        frame.Position = oldPos
-    end)
+    frame.Size = UDim2.new(0, 1, 0, 1) -- Kích thước nhỏ ban đầu để hiển thị ngay
+    
+    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quint, {Size = targetSize})
 end
 
 local function AnimateHide(frame)
-    stopTween(frame)
-    local origSize = originalSizes[frame] or frame.Size
-
-    -- tween nhỏ + fade out
-    playTween(frame, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In, {
-        Size = UDim2.new(origSize.X.Scale * 0.7, origSize.X.Offset * 0.7,
-                         origSize.Y.Scale * 0.7, origSize.Y.Offset * 0.7),
-        BackgroundTransparency = 1
-    }, function()
+    CancelCurrentTween()
+    local targetSize = UDim2.new(0, 0, 0, 0)
+    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quad, {Size = targetSize}, function()
         frame.Visible = false
-        -- phục hồi size & opacity để lần sau show lại đúng
-        frame.Size = origSize
-        frame.BackgroundTransparency = 0
     end)
 end
 
@@ -4840,6 +4809,7 @@ local C = game:GetService("CoreGui")
 local s = Instance.new("ScreenGui")
 local t = Instance.new("TextButton")
 local u = Instance.new("UICorner")
+
 s.Parent = C
 s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
