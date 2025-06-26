@@ -4759,25 +4759,28 @@ local isVisible = true
 local function CancelCurrentTween()
     if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
         currentTween:Cancel()
+        currentTween = nil 
     end
 end
-
-local function AnimateShow(frame)
-    CancelCurrentTween()
-    local targetSize = frame.Size
-    frame:SetAttribute("OriginalSize", targetSize)
-    frame.Visible = true
-    frame.Size = UDim2.new(0, 0, 0, 0)
-    currentTween = CreateTween({frame, "Size", targetSize, 0.325})
+local function CreateAndPlayTween(instance, time, style, properties, callback)
+    local tweenInfo = TweenInfo.new(time, style)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    if callback then
+        tween.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                callback()
+            end
+        end)
+    end
+    
+    return tween
 end
 
 local function AnimateHide(frame)
     CancelCurrentTween()
-    local currentSize = frame.Size
-    local tween = TweenService:Create(frame, TweenInfo.new(0.325, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0)})
-    tween:Play()
-    currentTween = tween
-    tween.Completed:Connect(function()
+    local targetSize = UDim2.new(0, 0, 0, 0)
+    currentTween = CreateAndPlayTween(frame, 0.325, Enum.EasingStyle.Quad, {Size = targetSize}, function()
         frame.Visible = false
     end)
 end
