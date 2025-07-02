@@ -4782,28 +4782,24 @@ end
 
 local function AnimateShow(frame)
     CancelCurrentTween()
-    -- Lưu lại size và vị trí gốc nếu chưa có
+    -- Lưu trạng thái gốc nếu chưa có
     if not frame:GetAttribute("OriginalSize") then
         frame:SetAttribute("OriginalSize", frame.Size)
     end
     if not frame:GetAttribute("OriginalPosition") then
         frame:SetAttribute("OriginalPosition", frame.Position)
     end
-    local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
-    local targetPosition = frame:GetAttribute("OriginalPosition") or frame.Position
 
-    -- Trước khi tween: luôn đặt về trạng thái ẩn ban đầu (ẩn, nhỏ, lệch, mờ)
+    local targetSize = frame:GetAttribute("OriginalSize")
+    local targetPosition = frame:GetAttribute("OriginalPosition")
+
+    -- Đặt về trạng thái ẩn trước khi hiện
     frame.Visible = true
     frame.Size = UDim2.new(0.8, 0, 0.8, 0)
     frame.BackgroundTransparency = 1
     frame.Position = UDim2.new(0.1, 0, 0.1, 0)
 
-    local tweenInfo = TweenInfo.new(
-        0.33,
-        Enum.EasingStyle.Quint,
-        Enum.EasingDirection.Out
-    )
-
+    local tweenInfo = TweenInfo.new(0.33, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     currentTween = CreateAndPlayTween(frame, tweenInfo, {
         Size = targetSize,
         BackgroundTransparency = 0,
@@ -4813,11 +4809,7 @@ end
 
 local function AnimateHide(frame)
     CancelCurrentTween()
-    local tweenInfo = TweenInfo.new(
-        0.28,
-        Enum.EasingStyle.Quint,
-        Enum.EasingDirection.In
-    )
+    local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
     currentTween = CreateAndPlayTween(frame, tweenInfo, {
         Size = UDim2.new(0.8, 0, 0.8, 0),
         BackgroundTransparency = 1,
