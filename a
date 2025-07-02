@@ -4792,7 +4792,7 @@ local function AnimateShow(frame)
     local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
     local targetPosition = frame:GetAttribute("OriginalPosition") or frame.Position
 
-    -- Đặt trạng thái đầu để chuẩn bị tween mượt
+    -- Trước khi tween: luôn đặt về trạng thái ẩn ban đầu (ẩn, nhỏ, lệch, mờ)
     frame.Visible = true
     frame.Size = UDim2.new(0.8, 0, 0.8, 0)
     frame.BackgroundTransparency = 1
@@ -4813,26 +4813,18 @@ end
 
 local function AnimateHide(frame)
     CancelCurrentTween()
-    -- Tween về trạng thái thu nhỏ và lệch vị trí (giống hiệu ứng ẩn)
-    local hideSize = UDim2.new(0.8, 0, 0.8, 0)
-    local hidePosition = UDim2.new(0.1, 0, 0.1, 0)
-    local hideTransparency = 1
-
     local tweenInfo = TweenInfo.new(
         0.28,
         Enum.EasingStyle.Quint,
         Enum.EasingDirection.In
     )
     currentTween = CreateAndPlayTween(frame, tweenInfo, {
-        Size = hideSize,
-        BackgroundTransparency = hideTransparency,
-        Position = hidePosition
+        Size = UDim2.new(0.8, 0, 0.8, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.1, 0, 0.1, 0)
     }, function()
         frame.Visible = false
-        -- Đặt lại các giá trị này để lần show tiếp theo luôn chuẩn
-        frame.Size = hideSize
-        frame.Position = hidePosition
-        frame.BackgroundTransparency = hideTransparency
+        -- KHÔNG set lại size/position/transparency ở đây!
     end)
 end
 
