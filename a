@@ -4765,7 +4765,16 @@ local function CancelCurrentTween()
 	end
 end
 
-local function CreateAndPlayTween(instance, tweenInfo, properties, callback)
+local function CreateAndPlayTween(instance, duration, easingStyle, easingDirection, properties, callback)
+
+	local tweenInfo = TweenInfo.new(
+		duration or 0.5,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDirection or Enum.EasingDirection.Out,
+		0, 
+		false,
+		0 
+	)
 	local tween = TweenService:Create(instance, tweenInfo, properties)
 	tween:Play()
 	if callback then
@@ -4773,8 +4782,10 @@ local function CreateAndPlayTween(instance, tweenInfo, properties, callback)
 			if playbackState == Enum.PlaybackState.Completed then
 				callback()
 			end
-		end)
+		end
+    )
 	end
+	
 	return tween
 end
 
