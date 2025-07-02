@@ -4788,8 +4788,8 @@ local function AnimateShow(frame)
     local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
     frame.Visible = true
     frame.Size = UDim2.new(0.8, 0, 0.8, 0)
-    frame.BackgroundTransparency = 1
-    frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+    frame.BackgroundTransparency = 0
+    frame.Position = UDim2.new(0, 0, 0, 0)
 
     local tweenInfo = TweenInfo.new(
         0.33, -- ngắn hơn cho cảm giác hiện đại
