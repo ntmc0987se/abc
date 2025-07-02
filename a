@@ -4765,65 +4765,59 @@ local function CancelCurrentTween()
 	end
 end
 
-local function CreateAndPlayTween(instance, duration, easingStyle, easingDirection, properties, callback)
-
-	local tweenInfo = TweenInfo.new(
-		duration or 0.5,
-		easingStyle or Enum.EasingStyle.Quad,
-		easingDirection or Enum.EasingDirection.Out,
-		0, 
-		false,
-		0 
-	)
-	local tween = TweenService:Create(instance, tweenInfo, properties)
-	tween:Play()
-	if callback then
-		tween.Completed:Connect(function(playbackState)
-			if playbackState == Enum.PlaybackState.Completed then
-				callback()
-			end
-		end
-    )
-	end
-	
-	return tween
+local function CreateAndPlayTween(instance, tweenInfo, properties, callback)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    if callback then
+        local conn
+        conn = tween.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                callback()
+                conn:Disconnect()
+            end
+        end)
+    end
+    return tween
 end
 
 local function AnimateShow(frame)
-	CancelCurrentTween()
+    CancelCurrentTween()
+    if not frame:GetAttribute("OriginalSize") then
+        frame:SetAttribute("OriginalSize", frame.Size)
+    end
+    local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
+    frame.Visible = true
+    frame.Size = UDim2.new(0.8, 0, 0.8, 0)
+    frame.BackgroundTransparency = 1
+    frame.Position = UDim2.new(0.1, 0, 0.1, 0)
 
-	if not frame:GetAttribute("OriginalSize") then
-		frame:SetAttribute("OriginalSize", frame.Size)
-	end
+    local tweenInfo = TweenInfo.new(
+        0.33, -- ngắn hơn cho cảm giác hiện đại
+        Enum.EasingStyle.Quint,
+        Enum.EasingDirection.Out
+    )
 
-	local targetSize = frame:GetAttribute("OriginalSize") or frame.Size
-
-	frame.Visible = true
-	frame.Size = UDim2.new(0.8, 0, 0.8, 0)
-	frame.BackgroundTransparency = 1
-	frame.Position = UDim2.new(0.1, 0, 0.1, 0)
-
-	local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-
-	currentTween = CreateAndPlayTween(frame, tweenInfo, {
-		Size = targetSize,
-		BackgroundTransparency = 0,
-		Position = UDim2.new(0, 0, 0, 0),
-	})
+    currentTween = CreateAndPlayTween(frame, tweenInfo, {
+        Size = targetSize,
+        BackgroundTransparency = 0,
+        Position = UDim2.new(0, 0, 0, 0),
+    })
 end
 
 local function AnimateHide(frame)
-	CancelCurrentTween()
-
-	local tweenInfo = TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
-
-	currentTween = CreateAndPlayTween(frame, tweenInfo, {
-		Size = UDim2.new(0.8, 0, 0.8, 0),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0.1, 0, 0.1, 0)
-	}, function()
-		frame.Visible = false
-	end)
+    CancelCurrentTween()
+    local tweenInfo = TweenInfo.new(
+        0.28,
+        Enum.EasingStyle.Quint,
+        Enum.EasingDirection.In
+    )
+    currentTween = CreateAndPlayTween(frame, tweenInfo, {
+        Size = UDim2.new(0.8, 0, 0.8, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.1, 0, 0.1, 0)
+    }, function()
+        frame.Visible = false
+    end)
 end
 
 local C = game:GetService("CoreGui")
@@ -4856,9 +4850,7 @@ t.MouseEnter:Connect(function()
     if buttonHoverTween then buttonHoverTween:Cancel() end
     buttonHoverTween = CreateAndPlayTween(
         t, 
-        0.15, 
-        Enum.EasingStyle.Quad, 
-        Enum.EasingDirection.Out,
+        TweenInfo.new(0.11, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
         {
             BackgroundColor3 = Color3.fromRGB(65, 65, 65),
             Size = UDim2.new(0, 47, 0, 47)
@@ -4870,9 +4862,7 @@ t.MouseLeave:Connect(function()
     if buttonHoverTween then buttonHoverTween:Cancel() end
     buttonHoverTween = CreateAndPlayTween(
         t, 
-        0.15, 
-        Enum.EasingStyle.Quad, 
-        Enum.EasingDirection.Out,
+        TweenInfo.new(0.11, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
         {
             BackgroundColor3 = Color3.fromRGB(50, 50, 50),
             Size = UDim2.new(0, 45, 0, 45)
@@ -4884,9 +4874,7 @@ t.MouseButton1Down:Connect(function()
     if buttonClickTween then buttonClickTween:Cancel() end
     buttonClickTween = CreateAndPlayTween(
         t, 
-        0.08, 
-        Enum.EasingStyle.Quad, 
-        Enum.EasingDirection.Out,
+        TweenInfo.new(0.07, Enum.EasingStyle.Back, Enum.EasingDirection.In),
         {
             Size = UDim2.new(0, 43, 0, 43)
         }
@@ -4897,9 +4885,7 @@ t.MouseButton1Up:Connect(function()
     if buttonClickTween then buttonClickTween:Cancel() end
     buttonClickTween = CreateAndPlayTween(
         t, 
-        0.12, 
-        Enum.EasingStyle.Back, 
-        Enum.EasingDirection.Out,
+        TweenInfo.new(0.09, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
         {
             Size = UDim2.new(0, 47, 0, 47)
         }
