@@ -4782,7 +4782,6 @@ end
 
 local function AnimateShow(frame)
     CancelCurrentTween()
-    -- Lưu trạng thái gốc nếu chưa có
     if not frame:GetAttribute("OriginalSize") then
         frame:SetAttribute("OriginalSize", frame.Size)
     end
@@ -4791,12 +4790,10 @@ local function AnimateShow(frame)
     end
     local targetSize = frame:GetAttribute("OriginalSize")
     local targetPosition = frame:GetAttribute("OriginalPosition")
-
-    -- Đặt về trạng thái ẩn trước khi hiện (đúng từng property!)
     frame.Size = UDim2.new(0.8, 0, 0.8, 0)
     frame.BackgroundTransparency = 1
     frame.Position = UDim2.new(0.1, 0, 0.1, 0)
-    frame.Visible = true -- Đặt sau cùng để đảm bảo property đã đúng
+    frame.Visible = true 
 
     local tweenInfo = TweenInfo.new(0.33, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     currentTween = CreateAndPlayTween(frame, tweenInfo, {
@@ -4818,7 +4815,6 @@ local function AnimateHide(frame)
         Position = hidePosition
     }, function()
         frame.Visible = false
-        -- ĐẶC BIỆT: reset lại thuộc tính về trạng thái ẩn để lần show sau ĐÚNG CHUẨN
         frame.Size = hideSize
         frame.BackgroundTransparency = hideTransparency
         frame.Position = hidePosition
@@ -4908,6 +4904,13 @@ t.MouseButton1Click:Connect(function()
         AnimateHide(MainFrame)
     end
 end)
+local function testw()
+    wait(0.5)
+AnimateShow(MainFrame)
+wait(0.5)
+AnimateHide(MainFrame)
+end
+testw()
 function Dialogsui()
     if MainFrame:FindFirstChild("Dialogsui") then return end
     local DTitle = "You want to close this script?"
