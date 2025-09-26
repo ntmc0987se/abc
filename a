@@ -7014,7 +7014,6 @@ end
 return SaveManager
 end)
 
-local Options = Library.Options
 local Toggles = Library.Toggles
 
 Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
