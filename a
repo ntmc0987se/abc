@@ -5080,10 +5080,7 @@ if MoveIcon then
         SizeConstraint = Enum.SizeConstraint.RelativeYY,
         Parent = TopBar,
     })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, WindowInfo.CornerRadius / 2), 
-        Parent = hid,
-    })
+
     hid.MouseButton1Click:Connect(function()
         Dialogsui()
     end)
@@ -5178,10 +5175,7 @@ end
             Size = UDim2.new(0.7, -1, 1, -70),
             Parent = MainFrame,
         })
-        New("UICorner", {
-    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
-    Parent = Container,
-})
+
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 0),
             PaddingLeft = UDim.new(0, 6),
@@ -5217,10 +5211,7 @@ end
                 Text = "",
                 Parent = Tabs,
             })
-            New("UICorner", {
-    CornerRadius = UDim.new(0, Library.CornerRadius / 2), -- hoặc Library.CornerRadius
-    Parent = TabButton,
-})
+
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 11),
                 PaddingLeft = UDim.new(0, 12),
@@ -7014,6 +7005,7 @@ end
 return SaveManager
 end)
 
+local Options = Library.Options
 local Toggles = Library.Toggles
 
 Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
