@@ -3,9 +3,6 @@ local Library = loadstring(game:HttpGet(repo .. "a"))()
 local ThemeManager = loadstring(game:HttpGet(repo .. "b"))()
 local SaveManager = loadstring(game:HttpGet(repo .. "c"))()
 
-local Options = Library.Options
-local Toggles = Library.Toggles
-
 Library.ForceCheckbox = false
 Library.ShowToggleFrameInKeybinds = true
 
