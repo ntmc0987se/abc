@@ -1,0 +1,126 @@
+local repo = "https://raw.githubusercontent.com/ntmc0987se/abc/refs/heads/main/"
+local Library = loadstring(game:HttpGet(repo .. "a"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "b"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "c"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+
+local Window = Library:CreateWindow({
+	Title = "mspaint",
+	Footer = "version: example",
+	Icon = 95816097006870,
+	NotifySide = "Right",
+	ShowCustomCursor = true,
+})
+
+local Tabs = {
+	Main = Window:AddTab("Main", "user"),
+	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+}
+
+-- TAB: Main
+local MainGroup = Tabs.Main:AddLeftGroupbox("General Settings", "boxes")
+
+-- 2 Multi Dropdowns
+MainGroup:AddDropdown("MyMultiDropdown1", {
+	Values = { "Option 1", "Option 2", "Option 3", "Option 4" },
+	Default = 1,
+	Multi = true,
+	Text = "Multi-Select Dropdown 1",
+	Callback = function(Value)
+		print("Multi dropdown 1 changed:")
+	end,
+})
+
+MainGroup:AddDropdown("MyMultiDropdown2", {
+	Values = { "Feature A", "Feature B", "Feature C" },
+	Default = 1,
+	Multi = true,
+	Text = "Multi-Select Dropdown 2",
+	Callback = function(Value)
+		print("Multi dropdown 2 changed:")
+	end,
+})
+
+-- 2 Normal Toggles
+MainGroup:AddToggle("FeatureToggle1", {
+	Text = "Toggle Feature 1",
+	Default = true,
+	Callback = function(Value)
+		print("FeatureToggle1 changed to:", Value)
+	end,
+})
+
+MainGroup:AddToggle("FeatureToggle2", {
+	Text = "Toggle Feature 2",
+	Default = false,
+	Callback = function(Value)
+		print("FeatureToggle2 changed to:", Value)
+	end,
+})
+
+-- TAB: UI Settings
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
+
+MenuGroup:AddToggle("KeybindMenuOpen", {
+	Default = Library.KeybindFrame.Visible,
+	Text = "Open Keybind Menu",
+	Callback = function(value)
+		Library.KeybindFrame.Visible = value
+	end,
+})
+MenuGroup:AddToggle("ShowCustomCursor", {
+	Text = "Custom Cursor",
+	Default = true,
+	Callback = function(Value)
+		Library.ShowCustomCursor = Value
+	end,
+})
+MenuGroup:AddDropdown("NotificationSide", {
+	Values = { "Left", "Right" },
+	Default = "Right",
+	Text = "Notification Side",
+	Callback = function(Value)
+		Library:SetNotifySide(Value)
+	end,
+})
+MenuGroup:AddDropdown("DPIDropdown", {
+	Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
+	Default = "100%",
+	Text = "DPI Scale",
+	Callback = function(Value)
+		Value = Value:gsub("%%", "")
+		local DPI = tonumber(Value)
+		Library:SetDPIScale(DPI)
+	end,
+})
+MenuGroup:AddDivider()
+MenuGroup:AddLabel("Menu bind")
+	:AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
+
+MenuGroup:AddButton("Unload", function()
+	Library:Unload()
+end)
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+
+ThemeManager:SetFolder("MyScriptHub")
+SaveManager:SetFolder("MyScriptHub/specific-game")
+SaveManager:SetSubFolder("specific-place")
+
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
+
+SaveManager:LoadAutoloadConfig()
