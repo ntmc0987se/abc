@@ -5790,7 +5790,10 @@ if MoveIcon then
         SizeConstraint = Enum.SizeConstraint.RelativeYY,
         Parent = TopBar,
     })
-
+        New("UICorner", {
+            CornerRadius = UDim.new(0, 8),
+            Parent = hid,
+        })
     hid.MouseButton1Click:Connect(function()
         Dialogsui()
     end)
