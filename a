@@ -1,5 +1,4 @@
-local Library = (function ()
-	local cloneref = (cloneref or clonereference or function(instance: any)
+local cloneref = (cloneref or clonereference or function(instance: any)
     return instance
 end)
 local CoreGui: CoreGui = cloneref(game:GetService("CoreGui"))
@@ -21,7 +20,7 @@ local gethui = gethui or function()
 end
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local Mouse = LocalPlayer:GetMouse()
+local Mouse = cloneref(LocalPlayer:GetMouse())
 
 local Labels = {}
 local Buttons = {}
@@ -95,6 +94,91 @@ local Library = {
     DPIRegistry = {},
 }
 
+local ObsidianImageManager = {
+    Assets = {
+        TransparencyTexture = {
+            RobloxId = 139785960036434,
+            Path = "Obsidian/assets/TransparencyTexture.png",
+
+            Id = nil
+        },
+        
+        SaturationMap = {
+            RobloxId = 4155801252,
+            Path = "Obsidian/assets/SaturationMap.png",
+
+            Id = nil
+        }
+    }
+}
+do
+    local BaseURL = "https://raw.githubusercontent.com/ntmc0987se/abc/refs/heads/main/"
+
+    local function RecursiveCreatePath(Path: string, IsFile: boolean?)
+        if not isfolder or not makefolder then return end
+
+        local Segments = Path:split("/")
+        local TraversedPath = ""
+
+        if IsFile then
+            table.remove(Segments, #Segments)
+        end
+
+        for _, Segment in ipairs(Segments) do
+            if not isfolder(TraversedPath .. Segment) then
+                makefolder(TraversedPath .. Segment)
+            end
+
+            TraversedPath = TraversedPath .. Segment .. "/"
+        end
+
+        return TraversedPath
+    end
+
+    function ObsidianImageManager.GetAsset(AssetName: string)
+        if not ObsidianImageManager.Assets[AssetName] then
+            return nil
+        end
+
+        local AssetData = ObsidianImageManager.Assets[AssetName]
+        if AssetData.Id then
+            return AssetData.Id
+        end
+
+        local AssetID = string.format("rbxassetid://%s", AssetData.RobloxId)
+
+        if getcustomasset then
+            local Success, NewID = pcall(getcustomasset, AssetData.Path)
+
+            if Success and NewID then
+                AssetID = NewID
+            end
+        end
+
+        AssetData.Id = AssetID
+        return AssetID
+    end
+
+    function ObsidianImageManager.DownloadAsset(AssetPath: string)
+        if not getcustomasset or not writefile or not isfile then
+            return
+        end
+
+        RecursiveCreatePath(AssetPath, true)
+
+        if isfile(AssetPath) then
+            return
+        end
+
+        local URLPath = AssetPath:gsub("Obsidian/", "")
+        writefile(AssetPath, game:HttpGet(BaseURL .. URLPath))
+    end
+
+    for _, Data in ObsidianImageManager.Assets do
+        ObsidianImageManager.DownloadAsset(Data.Path)
+    end
+end
+
 if RunService:IsStudio() then
     if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
         Library.IsMobile = true
@@ -167,11 +251,13 @@ local Templates = {
         AutoShow = true,
         Center = true,
         Resizable = true,
+        SearchbarSize = UDim2.fromScale(1, 1),
         CornerRadius = 4,
         NotifySide = "Right",
         ShowCustomCursor = true,
         Font = Enum.Font.Code,
         ToggleKeybind = Enum.KeyCode.RightControl,
+        MobileButtonsSide = "Left",
     },
     Toggle = {
         Text = "Toggle",
@@ -226,6 +312,25 @@ local Templates = {
         Changed = function() end,
 
         Disabled = false,
+        Visible = true,
+    },
+    Viewport = {
+        Object = nil,
+        Camera = nil,
+        Clone = true,
+        AutoFocus = true,
+        Interactive = false,
+        Height = 200,
+        Visible = true,
+    },
+    Image = {
+        Image = "",
+        Transparency = 0,
+        Color = Color3.new(1, 1, 1),
+        RectOffset = Vector2.zero,
+        RectSize = Vector2.zero,
+        ScaleType = Enum.ScaleType.Fit,
+        Height = 200,
         Visible = true,
     },
 
@@ -307,7 +412,7 @@ end
 
 local function IsMouseInput(Input: InputObject, IncludeM2: boolean?)
     return Input.UserInputType == Enum.UserInputType.MouseButton1
-        or IncludeM2 and Input.UserInputType == Enum.UserInputType.MouseButton2
+        or (IncludeM2 == true and Input.UserInputType == Enum.UserInputType.MouseButton2)
         or Input.UserInputType == Enum.UserInputType.Touch
 end
 local function IsClickInput(Input: InputObject, IncludeM2: boolean?)
@@ -318,6 +423,11 @@ end
 local function IsHoverInput(Input: InputObject)
     return (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch)
         and Input.UserInputState == Enum.UserInputState.Change
+end
+local function IsDragInput(Input: InputObject, IncludeM2: boolean?)
+    return IsMouseInput(Input, IncludeM2)
+        and (Input.UserInputState == Enum.UserInputState.Begin or Input.UserInputState == Enum.UserInputState.Change)
+        and Library.IsRobloxFocused
 end
 
 local function GetTableSize(Table: { [any]: any })
@@ -742,7 +852,7 @@ function Library:UpdateSearch(SearchText)
         end
 
         --// Update Groupbox Size and Visibility if found any element
-        if VisibleElements > 0 then 
+        if VisibleElements > 0 then
             DepGroupbox:Resize()
         end
         DepGroupbox.Holder.Visible = VisibleElements > 0
@@ -833,54 +943,14 @@ function Library:GiveSignal(Connection: RBXScriptConnection)
     return Connection
 end
 
-local FetchIcons, Icons = pcall(function()
-    return (function()
-        local Lucide = {}
-
-local icons = {{"a-arrow-down","a-arrow-up","a-large-small","accessibility","activity","air-vent","airplay","alarm-clock","alarm-clock-check","alarm-clock-minus","alarm-clock-off","alarm-clock-plus","alarm-smoke","album","align-center","align-center-horizontal","align-center-vertical","align-end-horizontal","align-end-vertical","align-horizontal-distribute-center","align-horizontal-distribute-end","align-horizontal-distribute-start","align-horizontal-justify-center","align-horizontal-justify-end","align-horizontal-justify-start","align-horizontal-space-around","align-horizontal-space-between","align-justify","align-left","align-right","align-start-horizontal","align-start-vertical","align-vertical-distribute-center","align-vertical-distribute-end","align-vertical-distribute-start","align-vertical-justify-center","align-vertical-justify-end","align-vertical-justify-start","align-vertical-space-around","align-vertical-space-between","ambulance","ampersand","ampersands","amphora","anchor","angry","annoyed","antenna","anvil","aperture","app-window","app-window-mac","apple","archive","archive-restore","archive-x","armchair","arrow-big-down","arrow-big-down-dash","arrow-big-left","arrow-big-left-dash","arrow-big-right","arrow-big-right-dash","arrow-big-up","arrow-big-up-dash","arrow-down","arrow-down-0-1","arrow-down-1-0","arrow-down-a-z","arrow-down-from-line","arrow-down-left","arrow-down-narrow-wide","arrow-down-right","arrow-down-to-dot","arrow-down-to-line","arrow-down-up","arrow-down-wide-narrow","arrow-down-z-a","arrow-left","arrow-left-from-line","arrow-left-right","arrow-left-to-line","arrow-right","arrow-right-from-line","arrow-right-left","arrow-right-to-line","arrow-up","arrow-up-0-1","arrow-up-1-0","arrow-up-a-z","arrow-up-down","arrow-up-from-dot","arrow-up-from-line","arrow-up-left","arrow-up-narrow-wide","arrow-up-right","arrow-up-to-line","arrow-up-wide-narrow","arrow-up-z-a","arrows-up-from-line","asterisk","at-sign","atom","audio-lines","audio-waveform","award","axe","axis-3d","baby","backpack","badge","badge-alert","badge-cent","badge-check","badge-dollar-sign","badge-euro","badge-help","badge-indian-rupee","badge-info","badge-japanese-yen","badge-minus","badge-percent","badge-plus","badge-pound-sterling","badge-russian-ruble","badge-swiss-franc","badge-x","baggage-claim","ban","banana","bandage","banknote","barcode","baseline","bath","battery","battery-charging","battery-full","battery-low","battery-medium","battery-warning","beaker","bean","bean-off","bed","bed-double","bed-single","beef","beer","beer-off","bell","bell-dot","bell-electric","bell-minus","bell-off","bell-plus","bell-ring","between-horizontal-end","between-horizontal-start","between-vertical-end","between-vertical-start","biceps-flexed","bike","binary","binoculars","biohazard","bird","bitcoin","blend","blinds","blocks","bluetooth","bluetooth-connected","bluetooth-off","bluetooth-searching","bold","bolt","bomb","bone","book","book-a","book-audio","book-check","book-copy","book-dashed","book-down","book-headphones","book-heart","book-image","book-key","book-lock","book-marked","book-minus","book-open","book-open-check","book-open-text","book-plus","book-text","book-type","book-up","book-up-2","book-user","book-x","bookmark","bookmark-check","bookmark-minus","bookmark-plus","bookmark-x","boom-box","bot","bot-message-square","bot-off","box","boxes","braces","brackets","brain","brain-circuit","brain-cog","brick-wall","briefcase","briefcase-business","briefcase-conveyor-belt","briefcase-medical","bring-to-front","brush","bug","bug-off","bug-play","building","building-2","bus","bus-front","cable","cable-car","cake","cake-slice","calculator","calendar","calendar-1","calendar-arrow-down","calendar-arrow-up","calendar-check","calendar-check-2","calendar-clock","calendar-cog","calendar-days","calendar-fold","calendar-heart","calendar-minus","calendar-minus-2","calendar-off","calendar-plus","calendar-plus-2","calendar-range","calendar-search","calendar-sync","calendar-x","calendar-x-2","camera","camera-off","candy","candy-cane","candy-off","cannabis","captions","captions-off","car","car-front","car-taxi-front","caravan","carrot","case-lower","case-sensitive","case-upper","cassette-tape","cast","castle","cat","cctv","chart-area","chart-bar","chart-bar-big","chart-bar-decreasing","chart-bar-increasing","chart-bar-stacked","chart-candlestick","chart-column","chart-column-big","chart-column-decreasing","chart-column-increasing","chart-column-stacked","chart-gantt","chart-line","chart-network","chart-no-axes-column","chart-no-axes-column-decreasing","chart-no-axes-column-increasing","chart-no-axes-combined","chart-no-axes-gantt","chart-pie","chart-scatter","chart-spline","check","check-check","chef-hat","cherry","chevron-down","chevron-first","chevron-last","chevron-left","chevron-right","chevron-up","chevrons-down","chevrons-down-up","chevrons-left","chevrons-left-right","chevrons-left-right-ellipsis","chevrons-right","chevrons-right-left","chevrons-up","chevrons-up-down","chrome","church","cigarette","cigarette-off","circle","circle-alert","circle-arrow-down","circle-arrow-left","circle-arrow-out-down-left","circle-arrow-out-down-right","circle-arrow-out-up-left","circle-arrow-out-up-right","circle-arrow-right","circle-arrow-up","circle-check","circle-check-big","circle-chevron-down","circle-chevron-left","circle-chevron-right","circle-chevron-up","circle-dashed","circle-divide","circle-dollar-sign","circle-dot","circle-dot-dashed","circle-ellipsis","circle-equal","circle-fading-arrow-up","circle-fading-plus","circle-gauge","circle-help","circle-minus","circle-off","circle-parking","circle-parking-off","circle-pause","circle-percent","circle-play","circle-plus","circle-power","circle-slash","circle-slash-2","circle-stop","circle-user","circle-user-round","circle-x","circuit-board","citrus","clapperboard","clipboard","clipboard-check","clipboard-copy","clipboard-list","clipboard-minus","clipboard-paste","clipboard-pen","clipboard-pen-line","clipboard-plus","clipboard-type","clipboard-x","clock","clock-1","clock-10","clock-11","clock-12","clock-2","clock-3","clock-4","clock-5","clock-6","clock-7","clock-8","clock-9","clock-alert","clock-arrow-down","clock-arrow-up","cloud","cloud-alert","cloud-cog","cloud-download","cloud-drizzle","cloud-fog","cloud-hail","cloud-lightning","cloud-moon","cloud-moon-rain","cloud-off","cloud-rain","cloud-rain-wind","cloud-snow","cloud-sun","cloud-sun-rain","cloud-upload","cloudy","clover","club","code","code-xml","codepen","codesandbox","coffee","cog","coins","columns-2","columns-3","columns-4","combine","command","compass","component","computer","concierge-bell","cone","construction","contact","contact-round","container","contrast","cookie","cooking-pot","copy","copy-check","copy-minus","copy-plus","copy-slash","copy-x","copyleft","copyright","corner-down-left","corner-down-right","corner-left-down","corner-left-up","corner-right-down","corner-right-up","corner-up-left","corner-up-right","cpu","creative-commons","credit-card","croissant","crop","cross","crosshair","crown","cuboid","cup-soda","currency","cylinder","dam","database","database-backup","database-zap","delete","dessert","diameter","diamond","diamond-minus","diamond-percent","diamond-plus","dice-1","dice-2","dice-3","dice-4","dice-5","dice-6","dices","diff","disc","disc-2","disc-3","disc-album","divide","dna","dna-off","dock","dog","dollar-sign","donut","door-closed","door-open","dot","download","drafting-compass","drama","dribbble","drill","droplet","droplet-off","droplets","drum","drumstick","dumbbell","ear","ear-off","earth","earth-lock","eclipse","egg","egg-fried","egg-off","ellipsis","ellipsis-vertical","equal","equal-approximately","equal-not","eraser","ethernet-port","euro","expand","external-link","eye","eye-closed","eye-off","facebook","factory","fan","fast-forward","feather","fence","ferris-wheel","figma","file","file-archive","file-audio","file-audio-2","file-axis-3d","file-badge","file-badge-2","file-box","file-chart-column","file-chart-column-increasing","file-chart-line","file-chart-pie","file-check","file-check-2","file-clock","file-code","file-code-2","file-cog","file-diff","file-digit","file-down","file-heart","file-image","file-input","file-json","file-json-2","file-key","file-key-2","file-lock","file-lock-2","file-minus","file-minus-2","file-music","file-output","file-pen","file-pen-line","file-plus","file-plus-2","file-question","file-scan","file-search","file-search-2","file-sliders","file-spreadsheet","file-stack","file-symlink","file-terminal","file-text","file-type","file-type-2","file-up","file-user","file-video","file-video-2","file-volume","file-volume-2","file-warning","file-x","file-x-2","files","film","filter","filter-x","fingerprint","fire-extinguisher","fish","fish-off","fish-symbol","flag","flag-off","flag-triangle-left","flag-triangle-right","flame","flame-kindling","flashlight","flashlight-off","flask-conical","flask-conical-off","flask-round","flip-horizontal","flip-horizontal-2","flip-vertical","flip-vertical-2","flower","flower-2","focus","fold-horizontal","fold-vertical","folder","folder-archive","folder-check","folder-clock","folder-closed","folder-code","folder-cog","folder-dot","folder-down","folder-git","folder-git-2","folder-heart","folder-input","folder-kanban","folder-key","folder-lock","folder-minus","folder-open","folder-open-dot","folder-output","folder-pen","folder-plus","folder-root","folder-search","folder-search-2","folder-symlink","folder-sync","folder-tree","folder-up","folder-x","folders","footprints","forklift","forward","frame","framer","frown","fuel","fullscreen","gallery-horizontal","gallery-horizontal-end","gallery-thumbnails","gallery-vertical","gallery-vertical-end","gamepad","gamepad-2","gauge","gavel","gem","ghost","gift","git-branch","git-branch-plus","git-commit-horizontal","git-commit-vertical","git-compare","git-compare-arrows","git-fork","git-graph","git-merge","git-pull-request","git-pull-request-arrow","git-pull-request-closed","git-pull-request-create","git-pull-request-create-arrow","git-pull-request-draft","github","gitlab","glass-water","glasses","globe","globe-lock","goal","grab","graduation-cap","grape","grid-2x2","grid-2x2-check","grid-2x2-plus","grid-2x2-x","grid-3x3","grip","grip-horizontal","grip-vertical","group","guitar","ham","hammer","hand","hand-coins","hand-heart","hand-helping","hand-metal","hand-platter","handshake","hard-drive","hard-drive-download","hard-drive-upload","hard-hat","hash","haze","hdmi-port","heading","heading-1","heading-2","heading-3","heading-4","heading-5","heading-6","headphone-off","headphones","headset","heart","heart-crack","heart-handshake","heart-off","heart-pulse","heater","hexagon","highlighter","history","hop","hop-off","hospital","hotel","hourglass","house","house-plug","house-plus","ice-cream-bowl","ice-cream-cone","id-card","image","image-down","image-minus","image-off","image-play","image-plus","image-up","image-upscale","images","import","inbox","indent-decrease","indent-increase","indian-rupee","infinity","info","inspection-panel","instagram","italic","iteration-ccw","iteration-cw","japanese-yen","joystick","kanban","key","key-round","key-square","keyboard","keyboard-music","keyboard-off","lamp","lamp-ceiling","lamp-desk","lamp-floor","lamp-wall-down","lamp-wall-up","land-plot","landmark","languages","laptop","laptop-minimal","laptop-minimal-check","lasso","lasso-select","laugh","layers","layers-2","layout-dashboard","layout-grid","layout-list","layout-panel-left","layout-panel-top","layout-template","leaf","leafy-green","lectern","letter-text","library","library-big","life-buoy","ligature","lightbulb","lightbulb-off","link","link-2","link-2-off","linkedin","list","list-check","list-checks","list-collapse","list-end","list-filter","list-filter-plus","list-minus","list-music","list-ordered","list-plus","list-restart","list-start","list-todo","list-tree","list-video","list-x","loader","loader-circle","loader-pinwheel","locate","locate-fixed","locate-off","lock","lock-keyhole","lock-keyhole-open","lock-open","log-in","log-out","logs","lollipop","luggage","magnet","mail","mail-check","mail-minus","mail-open","mail-plus","mail-question","mail-search","mail-warning","mail-x","mailbox","mails","map","map-pin","map-pin-check","map-pin-check-inside","map-pin-house","map-pin-minus","map-pin-minus-inside","map-pin-off","map-pin-plus","map-pin-plus-inside","map-pin-x","map-pin-x-inside","map-pinned","martini","maximize","maximize-2","medal","megaphone","megaphone-off","meh","memory-stick","menu","merge","message-circle","message-circle-code","message-circle-dashed","message-circle-heart","message-circle-more","message-circle-off","message-circle-plus","message-circle-question","message-circle-reply","message-circle-warning","message-circle-x","message-square","message-square-code","message-square-dashed","message-square-diff","message-square-dot","message-square-heart","message-square-lock","message-square-more","message-square-off","message-square-plus","message-square-quote","message-square-reply","message-square-share","message-square-text","message-square-warning","message-square-x","messages-square","mic","mic-off","mic-vocal","microchip","microscope","microwave","milestone","milk","milk-off","minimize","minimize-2","minus","monitor","monitor-check","monitor-cog","monitor-dot","monitor-down","monitor-off","monitor-pause","monitor-play","monitor-smartphone","monitor-speaker","monitor-stop","monitor-up","monitor-x","moon","moon-star","mountain","mountain-snow","mouse","mouse-off","mouse-pointer","mouse-pointer-2","mouse-pointer-ban","mouse-pointer-click","move","move-3d","move-diagonal","move-diagonal-2","move-down","move-down-left","move-down-right","move-horizontal","move-left","move-right","move-up","move-up-left","move-up-right","move-vertical","music","music-2","music-3","music-4","navigation","navigation-2","navigation-2-off","navigation-off","network","newspaper","nfc","notebook","notebook-pen","notebook-tabs","notebook-text","notepad-text","notepad-text-dashed","nut","nut-off","octagon","octagon-alert","octagon-minus","octagon-pause","octagon-x","omega","option","orbit","origami","package","package-2","package-check","package-minus","package-open","package-plus","package-search","package-x","paint-bucket","paint-roller","paintbrush","paintbrush-vertical","palette","panel-bottom","panel-bottom-close","panel-bottom-dashed","panel-bottom-open","panel-left","panel-left-close","panel-left-dashed","panel-left-open","panel-right","panel-right-close","panel-right-dashed","panel-right-open","panel-top","panel-top-close","panel-top-dashed","panel-top-open","panels-left-bottom","panels-right-bottom","panels-top-left","paperclip","parentheses","parking-meter","party-popper","pause","paw-print","pc-case","pen","pen-line","pen-off","pen-tool","pencil","pencil-line","pencil-off","pencil-ruler","pentagon","percent","person-standing","philippine-peso","phone","phone-call","phone-forwarded","phone-incoming","phone-missed","phone-off","phone-outgoing","pi","piano","pickaxe","picture-in-picture","picture-in-picture-2","piggy-bank","pilcrow","pilcrow-left","pilcrow-right","pill","pill-bottle","pin","pin-off","pipette","pizza","plane","plane-landing","plane-takeoff","play","plug","plug-2","plug-zap","plus","pocket","pocket-knife","podcast","pointer","pointer-off","popcorn","popsicle","pound-sterling","power","power-off","presentation","printer","printer-check","projector","proportions","puzzle","pyramid","qr-code","quote","rabbit","radar","radiation","radical","radio","radio-receiver","radio-tower","radius","rail-symbol","rainbow","rat","ratio","receipt","receipt-cent","receipt-euro","receipt-indian-rupee","receipt-japanese-yen","receipt-pound-sterling","receipt-russian-ruble","receipt-swiss-franc","receipt-text","rectangle-ellipsis","rectangle-horizontal","rectangle-vertical","recycle","redo","redo-2","redo-dot","refresh-ccw","refresh-ccw-dot","refresh-cw","refresh-cw-off","refrigerator","regex","remove-formatting","repeat","repeat-1","repeat-2","replace","replace-all","reply","reply-all","rewind","ribbon","rocket","rocking-chair","roller-coaster","rotate-3d","rotate-ccw","rotate-ccw-square","rotate-cw","rotate-cw-square","route","route-off","router","rows-2","rows-3","rows-4","rss","ruler","russian-ruble","sailboat","salad","sandwich","satellite","satellite-dish","save","save-all","save-off","scale","scale-3d","scaling","scan","scan-barcode","scan-eye","scan-face","scan-heart","scan-line","scan-qr-code","scan-search","scan-text","school","scissors","scissors-line-dashed","screen-share","screen-share-off","scroll","scroll-text","search","search-check","search-code","search-slash","search-x","section","send","send-horizontal","send-to-back","separator-horizontal","separator-vertical","server","server-cog","server-crash","server-off","settings","settings-2","shapes","share","share-2","sheet","shell","shield","shield-alert","shield-ban","shield-check","shield-ellipsis","shield-half","shield-minus","shield-off","shield-plus","shield-question","shield-x","ship","ship-wheel","shirt","shopping-bag","shopping-basket","shopping-cart","shovel","shower-head","shrink","shrub","shuffle","sigma","signal","signal-high","signal-low","signal-medium","signal-zero","signature","signpost","signpost-big","siren","skip-back","skip-forward","skull","slack","slash","slice","sliders-horizontal","sliders-vertical","smartphone","smartphone-charging","smartphone-nfc","smile","smile-plus","snail","snowflake","sofa","soup","space","spade","sparkle","sparkles","speaker","speech","spell-check","spell-check-2","spline","split","spray-can","sprout","square","square-activity","square-arrow-down","square-arrow-down-left","square-arrow-down-right","square-arrow-left","square-arrow-out-down-left","square-arrow-out-down-right","square-arrow-out-up-left","square-arrow-out-up-right","square-arrow-right","square-arrow-up","square-arrow-up-left","square-arrow-up-right","square-asterisk","square-bottom-dashed-scissors","square-chart-gantt","square-check","square-check-big","square-chevron-down","square-chevron-left","square-chevron-right","square-chevron-up","square-code","square-dashed","square-dashed-bottom","square-dashed-bottom-code","square-dashed-kanban","square-dashed-mouse-pointer","square-divide","square-dot","square-equal","square-function","square-kanban","square-library","square-m","square-menu","square-minus","square-mouse-pointer","square-parking","square-parking-off","square-pen","square-percent","square-pi","square-pilcrow","square-play","square-plus","square-power","square-radical","square-scissors","square-sigma","square-slash","square-split-horizontal","square-split-vertical","square-square","square-stack","square-terminal","square-user","square-user-round","square-x","squircle","squirrel","stamp","star","star-half","star-off","step-back","step-forward","stethoscope","sticker","sticky-note","store","stretch-horizontal","stretch-vertical","strikethrough","subscript","sun","sun-dim","sun-medium","sun-moon","sun-snow","sunrise","sunset","superscript","swatch-book","swiss-franc","switch-camera","sword","swords","syringe","table","table-2","table-cells-merge","table-cells-split","table-columns-split","table-of-contents","table-properties","table-rows-split","tablet","tablet-smartphone","tablets","tag","tags","tally-1","tally-2","tally-3","tally-4","tally-5","tangent","target","telescope","tent","tent-tree","terminal","test-tube","test-tube-diagonal","test-tubes","text","text-cursor","text-cursor-input","text-quote","text-search","text-select","theater","thermometer","thermometer-snowflake","thermometer-sun","thumbs-down","thumbs-up","ticket","ticket-check","ticket-minus","ticket-percent","ticket-plus","ticket-slash","ticket-x","tickets","tickets-plane","timer","timer-off","timer-reset","toggle-left","toggle-right","toilet","tornado","torus","touchpad","touchpad-off","tower-control","toy-brick","tractor","traffic-cone","train-front","train-front-tunnel","train-track","tram-front","trash","trash-2","tree-deciduous","tree-palm","tree-pine","trees","trello","trending-down","trending-up","trending-up-down","triangle","triangle-alert","triangle-right","trophy","truck","turtle","tv","tv-minimal","tv-minimal-play","twitch","twitter","type","type-outline","umbrella","umbrella-off","underline","undo","undo-2","undo-dot","unfold-horizontal","unfold-vertical","ungroup","university","unlink","unlink-2","unplug","upload","usb","user","user-check","user-cog","user-minus","user-pen","user-plus","user-round","user-round-check","user-round-cog","user-round-minus","user-round-pen","user-round-plus","user-round-search","user-round-x","user-search","user-x","users","users-round","utensils","utensils-crossed","utility-pole","variable","vault","vegan","venetian-mask","vibrate","vibrate-off","video","video-off","videotape","view","voicemail","volleyball","volume","volume-1","volume-2","volume-off","volume-x","vote","wallet","wallet-cards","wallet-minimal","wallpaper","wand","wand-sparkles","warehouse","washing-machine","watch","waves","waves-ladder","waypoints","webcam","webhook","webhook-off","weight","wheat","wheat-off","whole-word","wifi","wifi-high","wifi-low","wifi-off","wifi-zero","wind","wind-arrow-down","wine","wine-off","workflow","worm","wrap-text","wrench","x","youtube","zap","zap-off","zoom-in","zoom-out","x"},{"103134660123798"},{[48]={{1,{24,24},{49,0}},{1,{24,24},{0,49}},{1,{24,24},{74,0}},{1,{24,24},{49,25}},{1,{24,24},{0,74}},{1,{24,24},{99,0}},{1,{24,24},{74,25}},{1,{24,24},{74,50}},{1,{24,24},{49,50}},{1,{24,24},{0,99}},{1,{24,24},{124,0}},{1,{24,24},{99,25}},{1,{24,24},{49,75}},{1,{24,24},{0,124}},{1,{24,24},{99,50}},{1,{24,24},{149,0}},{1,{24,24},{124,25}},{1,{24,24},{74,75}},{1,{24,24},{49,100}},{1,{24,24},{0,149}},{1,{24,24},{174,0}},{1,{24,24},{149,25}},{1,{24,24},{124,50}},{1,{24,24},{99,75}},{1,{24,24},{74,100}},{1,{24,24},{49,125}},{1,{24,24},{0,174}},{1,{24,24},{199,0}},{1,{24,24},{174,25}},{1,{24,24},{149,50}},{1,{24,24},{124,75}},{1,{24,24},{99,100}},{1,{24,24},{74,125}},{1,{24,24},{49,150}},{1,{24,24},{0,199}},{1,{24,24},{224,0}},{1,{24,24},{199,25}},{1,{24,24},{174,50}},{1,{24,24},{149,75}},{1,{24,24},{124,100}},{1,{24,24},{99,125}},{1,{24,24},{74,150}},{1,{24,24},{49,175}},{1,{24,24},{0,224}},{1,{24,24},{249,0}},{1,{24,24},{224,25}},{1,{24,24},{199,50}},{1,{24,24},{174,75}},{1,{24,24},{149,100}},{1,{24,24},{124,125}},{1,{24,24},{74,175}},{1,{24,24},{99,150}},{1,{24,24},{49,200}},{1,{24,24},{249,25}},{1,{24,24},{0,249}},{1,{24,24},{274,0}},{1,{24,24},{224,50}},{1,{24,24},{174,100}},{1,{24,24},{199,75}},{1,{24,24},{124,150}},{1,{24,24},{149,125}},{1,{24,24},{74,200}},{1,{24,24},{99,175}},{1,{24,24},{0,274}},{1,{24,24},{49,225}},{1,{24,24},{324,0}},{1,{24,24},{299,0}},{1,{24,24},{274,25}},{1,{24,24},{249,50}},{1,{24,24},{224,75}},{1,{24,24},{199,100}},{1,{24,24},{174,125}},{1,{24,24},{149,150}},{1,{24,24},{124,175}},{1,{24,24},{99,200}},{1,{24,24},{74,225}},{1,{24,24},{49,250}},{1,{24,24},{0,299}},{1,{24,24},{224,100}},{1,{24,24},{299,25}},{1,{24,24},{274,50}},{1,{24,24},{249,75}},{1,{24,24},{124,200}},{1,{24,24},{199,125}},{1,{24,24},{174,150}},{1,{24,24},{149,175}},{1,{24,24},{149,200}},{1,{24,24},{99,225}},{1,{24,24},{74,250}},{1,{24,24},{49,275}},{1,{24,24},{0,324}},{1,{24,24},{349,0}},{1,{24,24},{324,25}},{1,{24,24},{299,50}},{1,{24,24},{274,75}},{1,{24,24},{249,100}},{1,{24,24},{224,125}},{1,{24,24},{199,150}},{1,{24,24},{174,175}},{1,{24,24},{124,225}},{1,{24,24},{99,250}},{1,{24,24},{74,275}},{1,{24,24},{49,300}},{1,{24,24},{0,349}},{1,{24,24},{374,0}},{1,{24,24},{349,25}},{1,{24,24},{324,50}},{1,{24,24},{299,75}},{1,{24,24},{274,100}},{1,{24,24},{249,125}},{1,{24,24},{224,175}},{1,{24,24},{224,150}},{1,{24,24},{199,175}},{1,{24,24},{174,200}},{1,{24,24},{149,225}},{1,{24,24},{124,250}},{1,{24,24},{99,275}},{1,{24,24},{74,300}},{1,{24,24},{49,325}},{1,{24,24},{0,374}},{1,{24,24},{399,0}},{1,{24,24},{374,25}},{1,{24,24},{349,50}},{1,{24,24},{324,75}},{1,{24,24},{299,100}},{1,{24,24},{274,125}},{1,{24,24},{249,150}},{1,{24,24},{199,200}},{1,{24,24},{174,225}},{1,{24,24},{149,250}},{1,{24,24},{124,275}},{1,{24,24},{99,300}},{1,{24,24},{74,325}},{1,{24,24},{49,350}},{1,{24,24},{0,399}},{1,{24,24},{299,125}},{1,{24,24},{424,0}},{1,{24,24},{399,25}},{1,{24,24},{374,50}},{1,{24,24},{349,75}},{1,{24,24},{324,100}},{1,{24,24},{274,150}},{1,{24,24},{224,200}},{1,{24,24},{249,175}},{1,{24,24},{149,275}},{1,{24,24},{199,225}},{1,{24,24},{174,250}},{1,{24,24},{124,300}},{1,{24,24},{74,350}},{1,{24,24},{99,325}},{1,{24,24},{349,100}},{1,{24,24},{49,375}},{1,{24,24},{0,424}},{1,{24,24},{449,0}},{1,{24,24},{424,25}},{1,{24,24},{399,50}},{1,{24,24},{374,75}},{1,{24,24},{324,125}},{1,{24,24},{299,150}},{1,{24,24},{274,175}},{1,{24,24},{249,200}},{1,{24,24},{224,225}},{1,{24,24},{199,250}},{1,{24,24},{174,275}},{1,{24,24},{149,300}},{1,{24,24},{124,325}},{1,{24,24},{99,350}},{1,{24,24},{74,375}},{1,{24,24},{49,400}},{1,{24,24},{0,449}},{1,{24,24},{474,0}},{1,{24,24},{374,100}},{1,{24,24},{449,25}},{1,{24,24},{424,50}},{1,{24,24},{399,75}},{1,{24,24},{349,125}},{1,{24,24},{324,150}},{1,{24,24},{299,175}},{1,{24,24},{274,200}},{1,{24,24},{174,325}},{1,{24,24},{249,225}},{1,{24,24},{224,250}},{1,{24,24},{199,275}},{1,{24,24},{174,300}},{1,{24,24},{149,325}},{1,{24,24},{124,350}},{1,{24,24},{99,375}},{1,{24,24},{74,400}},{1,{24,24},{49,425}},{1,{24,24},{0,474}},{1,{24,24},{499,0}},{1,{24,24},{474,25}},{1,{24,24},{449,50}},{1,{24,24},{374,125}},{1,{24,24},{424,75}},{1,{24,24},{399,100}},{1,{24,24},{349,150}},{1,{24,24},{324,175}},{1,{24,24},{299,200}},{1,{24,24},{249,250}},{1,{24,24},{274,225}},{1,{24,24},{224,275}},{1,{24,24},{199,300}},{1,{24,24},{49,450}},{1,{24,24},{149,350}},{1,{24,24},{124,375}},{1,{24,24},{99,400}},{1,{24,24},{74,425}},{1,{24,24},{0,499}},{1,{24,24},{474,50}},{1,{24,24},{524,0}},{1,{24,24},{499,25}},{1,{24,24},{449,75}},{1,{24,24},{424,100}},{1,{24,24},{399,125}},{1,{24,24},{374,150}},{1,{24,24},{299,225}},{1,{24,24},{349,175}},{1,{24,24},{324,200}},{1,{24,24},{274,250}},{1,{24,24},{174,350}},{1,{24,24},{249,275}},{1,{24,24},{224,300}},{1,{24,24},{199,325}},{1,{24,24},{149,375}},{1,{24,24},{124,400}},{1,{24,24},{49,475}},{1,{24,24},{99,425}},{1,{24,24},{74,450}},{1,{24,24},{549,0}},{1,{24,24},{0,524}},{1,{24,24},{499,50}},{1,{24,24},{524,25}},{1,{24,24},{449,100}},{1,{24,24},{474,75}},{1,{24,24},{399,150}},{1,{24,24},{424,125}},{1,{24,24},{374,175}},{1,{24,24},{424,150}},{1,{24,24},{349,200}},{1,{24,24},{324,225}},{1,{24,24},{299,250}},{1,{24,24},{249,300}},{1,{24,24},{274,275}},{1,{24,24},{224,325}},{1,{24,24},{199,350}},{1,{24,24},{174,375}},{1,{24,24},{149,400}},{1,{24,24},{124,425}},{1,{24,24},{74,475}},{1,{24,24},{99,450}},{1,{24,24},{49,500}},{1,{24,24},{574,0}},{1,{24,24},{0,549}},{1,{24,24},{549,25}},{1,{24,24},{524,50}},{1,{24,24},{499,75}},{1,{24,24},{449,125}},{1,{24,24},{474,100}},{1,{24,24},{374,200}},{1,{24,24},{399,175}},{1,{24,24},{299,275}},{1,{24,24},{349,225}},{1,{24,24},{324,250}},{1,{24,24},{274,300}},{1,{24,24},{224,350}},{1,{24,24},{249,325}},{1,{24,24},{149,425}},{1,{24,24},{199,375}},{1,{24,24},{174,400}},{1,{24,24},{124,450}},{1,{24,24},{99,475}},{1,{24,24},{74,500}},{1,{24,24},{49,525}},{1,{24,24},{0,574}},{1,{24,24},{599,0}},{1,{24,24},{574,25}},{1,{24,24},{549,50}},{1,{24,24},{524,75}},{1,{24,24},{499,100}},{1,{24,24},{474,125}},{1,{24,24},{349,250}},{1,{24,24},{449,150}},{1,{24,24},{424,175}},{1,{24,24},{399,200}},{1,{24,24},{374,225}},{1,{24,24},{324,275}},{1,{24,24},{199,400}},{1,{24,24},{299,300}},{1,{24,24},{274,325}},{1,{24,24},{249,350}},{1,{24,24},{224,375}},{1,{24,24},{174,425}},{1,{24,24},{149,450}},{1,{24,24},{124,475}},{1,{24,24},{49,550}},{1,{24,24},{99,500}},{1,{24,24},{74,525}},{1,{24,24},{0,599}},{1,{24,24},{624,0}},{1,{24,24},{599,25}},{1,{24,24},{574,50}},{1,{24,24},{549,75}},{1,{24,24},{499,125}},{1,{24,24},{524,100}},{1,{24,24},{474,150}},{1,{24,24},{449,175}},{1,{24,24},{424,200}},{1,{24,24},{399,225}},{1,{24,24},{374,250}},{1,{24,24},{349,275}},{1,{24,24},{324,300}},{1,{24,24},{299,325}},{1,{24,24},{249,375}},{1,{24,24},{274,350}},{1,{24,24},{174,450}},{1,{24,24},{199,425}},{1,{24,24},{224,400}},{1,{24,24},{124,500}},{1,{24,24},{149,475}},{1,{24,24},{74,550}},{1,{24,24},{99,525}},{1,{24,24},{49,575}},{1,{24,24},{0,624}},{1,{24,24},{624,25}},{1,{24,24},{649,0}},{1,{24,24},{249,425}},{1,{24,24},{599,50}},{1,{24,24},{574,75}},{1,{24,24},{549,100}},{1,{24,24},{524,125}},{1,{24,24},{499,150}},{1,{24,24},{474,175}},{1,{24,24},{449,200}},{1,{24,24},{424,225}},{1,{24,24},{399,250}},{1,{24,24},{349,300}},{1,{24,24},{374,275}},{1,{24,24},{324,325}},{1,{24,24},{299,350}},{1,{24,24},{274,375}},{1,{24,24},{249,400}},{1,{24,24},{224,425}},{1,{24,24},{199,450}},{1,{24,24},{174,475}},{1,{24,24},{124,525}},{1,{24,24},{149,500}},{1,{24,24},{99,550}},{1,{24,24},{74,575}},{1,{24,24},{49,600}},{1,{24,24},{0,649}},{1,{24,24},{674,0}},{1,{24,24},{649,25}},{1,{24,24},{624,50}},{1,{24,24},{599,75}},{1,{24,24},{549,125}},{1,{24,24},{574,100}},{1,{24,24},{524,150}},{1,{24,24},{499,175}},{1,{24,24},{474,200}},{1,{24,24},{449,225}},{1,{24,24},{424,250}},{1,{24,24},{374,300}},{1,{24,24},{399,275}},{1,{24,24},{349,325}},{1,{24,24},{299,375}},{1,{24,24},{324,350}},{1,{24,24},{274,400}},{1,{24,24},{224,450}},{1,{24,24},{199,475}},{1,{24,24},{174,500}},{1,{24,24},{599,100}},{1,{24,24},{149,525}},{1,{24,24},{124,550}},{1,{24,24},{99,575}},{1,{24,24},{74,600}},{1,{24,24},{49,625}},{1,{24,24},{699,0}},{1,{24,24},{0,674}},{1,{24,24},{674,25}},{1,{24,24},{649,50}},{1,{24,24},{624,75}},{1,{24,24},{199,500}},{1,{24,24},{574,125}},{1,{24,24},{549,150}},{1,{24,24},{524,175}},{1,{24,24},{499,200}},{1,{24,24},{474,225}},{1,{24,24},{449,250}},{1,{24,24},{424,275}},{1,{24,24},{399,300}},{1,{24,24},{374,325}},{1,{24,24},{349,350}},{1,{24,24},{324,375}},{1,{24,24},{299,400}},{1,{24,24},{274,425}},{1,{24,24},{249,450}},{1,{24,24},{224,475}},{1,{24,24},{499,225}},{1,{24,24},{174,525}},{1,{24,24},{149,550}},{1,{24,24},{124,575}},{1,{24,24},{99,600}},{1,{24,24},{74,625}},{1,{24,24},{49,650}},{1,{24,24},{0,699}},{1,{24,24},{699,25}},{1,{24,24},{724,0}},{1,{24,24},{674,50}},{1,{24,24},{624,100}},{1,{24,24},{649,75}},{1,{24,24},{599,125}},{1,{24,24},{549,175}},{1,{24,24},{574,150}},{1,{24,24},{524,200}},{1,{24,24},{474,250}},{1,{24,24},{449,275}},{1,{24,24},{424,300}},{1,{24,24},{374,350}},{1,{24,24},{399,325}},{1,{24,24},{349,375}},{1,{24,24},{324,400}},{1,{24,24},{299,425}},{1,{24,24},{274,450}},{1,{24,24},{249,475}},{1,{24,24},{224,500}},{1,{24,24},{199,525}},{1,{24,24},{174,550}},{1,{24,24},{149,575}},{1,{24,24},{124,600}},{1,{24,24},{99,625}},{1,{24,24},{74,650}},{1,{24,24},{49,675}},{1,{24,24},{0,724}},{1,{24,24},{749,0}},{1,{24,24},{724,25}},{1,{24,24},{674,75}},{1,{24,24},{699,50}},{1,{24,24},{649,100}},{1,{24,24},{624,125}},{1,{24,24},{599,150}},{1,{24,24},{574,175}},{1,{24,24},{424,325}},{1,{24,24},{549,200}},{1,{24,24},{524,225}},{1,{24,24},{499,250}},{1,{24,24},{474,275}},{1,{24,24},{449,300}},{1,{24,24},{399,350}},{1,{24,24},{374,375}},{1,{24,24},{349,400}},{1,{24,24},{324,425}},{1,{24,24},{299,450}},{1,{24,24},{274,475}},{1,{24,24},{249,500}},{1,{24,24},{224,525}},{1,{24,24},{199,550}},{1,{24,24},{174,575}},{1,{24,24},{149,600}},{1,{24,24},{124,625}},{1,{24,24},{99,650}},{1,{24,24},{74,675}},{1,{24,24},{49,700}},{1,{24,24},{0,749}},{1,{24,24},{774,0}},{1,{24,24},{749,25}},{1,{24,24},{724,50}},{1,{24,24},{699,75}},{1,{24,24},{674,100}},{1,{24,24},{649,125}},{1,{24,24},{624,150}},{1,{24,24},{549,225}},{1,{24,24},{599,175}},{1,{24,24},{574,200}},{1,{24,24},{524,250}},{1,{24,24},{499,275}},{1,{24,24},{474,300}},{1,{24,24},{374,400}},{1,{24,24},{449,325}},{1,{24,24},{424,350}},{1,{24,24},{399,375}},{1,{24,24},{349,425}},{1,{24,24},{324,450}},{1,{24,24},{299,475}},{1,{24,24},{274,500}},{1,{24,24},{249,525}},{1,{24,24},{224,550}},{1,{24,24},{199,575}},{1,{24,24},{174,600}},{1,{24,24},{74,700}},{1,{24,24},{149,625}},{1,{24,24},{124,650}},{1,{24,24},{99,675}},{1,{24,24},{49,725}},{1,{24,24},{799,0}},{1,{24,24},{0,774}},{1,{24,24},{774,25}},{1,{24,24},{749,50}},{1,{24,24},{724,75}},{1,{24,24},{699,100}},{1,{24,24},{674,125}},{1,{24,24},{649,150}},{1,{24,24},{624,175}},{1,{24,24},{599,200}},{1,{24,24},{574,225}},{1,{24,24},{549,250}},{1,{24,24},{524,275}},{1,{24,24},{499,300}},{1,{24,24},{449,350}},{1,{24,24},{474,325}},{1,{24,24},{424,375}},{1,{24,24},{399,400}},{1,{24,24},{374,425}},{1,{24,24},{349,450}},{1,{24,24},{299,500}},{1,{24,24},{324,475}},{1,{24,24},{249,550}},{1,{24,24},{274,525}},{1,{24,24},{224,575}},{1,{24,24},{149,650}},{1,{24,24},{199,600}},{1,{24,24},{174,625}},{1,{24,24},{99,700}},{1,{24,24},{124,675}},{1,{24,24},{0,799}},{1,{24,24},{74,725}},{1,{24,24},{49,750}},{1,{24,24},{824,0}},{1,{24,24},{799,25}},{1,{24,24},{774,50}},{1,{24,24},{749,75}},{1,{24,24},{724,100}},{1,{24,24},{649,175}},{1,{24,24},{699,125}},{1,{24,24},{674,150}},{1,{24,24},{624,200}},{1,{24,24},{599,225}},{1,{24,24},{574,250}},{1,{24,24},{549,275}},{1,{24,24},{524,300}},{1,{24,24},{499,325}},{1,{24,24},{474,350}},{1,{24,24},{449,375}},{1,{24,24},{699,175}},{1,{24,24},{424,400}},{1,{24,24},{374,450}},{1,{24,24},{399,425}},{1,{24,24},{349,475}},{1,{24,24},{299,525}},{1,{24,24},{324,500}},{1,{24,24},{274,550}},{1,{24,24},{224,600}},{1,{24,24},{249,575}},{1,{24,24},{199,625}},{1,{24,24},{174,650}},{1,{24,24},{124,700}},{1,{24,24},{149,675}},{1,{24,24},{99,725}},{1,{24,24},{49,775}},{1,{24,24},{74,750}},{1,{24,24},{0,824}},{1,{24,24},{849,0}},{1,{24,24},{824,25}},{1,{24,24},{799,50}},{1,{24,24},{774,75}},{1,{24,24},{749,100}},{1,{24,24},{724,125}},{1,{24,24},{674,175}},{1,{24,24},{699,150}},{1,{24,24},{624,225}},{1,{24,24},{649,200}},{1,{24,24},{574,275}},{1,{24,24},{599,250}},{1,{24,24},{524,325}},{1,{24,24},{549,300}},{1,{24,24},{499,350}},{1,{24,24},{474,375}},{1,{24,24},{424,425}},{1,{24,24},{449,400}},{1,{24,24},{374,475}},{1,{24,24},{399,450}},{1,{24,24},{349,500}},{1,{24,24},{324,525}},{1,{24,24},{274,575}},{1,{24,24},{299,550}},{1,{24,24},{249,600}},{1,{24,24},{224,625}},{1,{24,24},{199,650}},{1,{24,24},{174,675}},{1,{24,24},{149,700}},{1,{24,24},{124,725}},{1,{24,24},{74,775}},{1,{24,24},{99,750}},{1,{24,24},{49,800}},{1,{24,24},{0,849}},{1,{24,24},{849,25}},{1,{24,24},{874,0}},{1,{24,24},{799,75}},{1,{24,24},{824,50}},{1,{24,24},{774,100}},{1,{24,24},{724,150}},{1,{24,24},{749,125}},{1,{24,24},{674,200}},{1,{24,24},{649,225}},{1,{24,24},{599,275}},{1,{24,24},{624,250}},{1,{24,24},{574,300}},{1,{24,24},{549,325}},{1,{24,24},{474,400}},{1,{24,24},{524,350}},{1,{24,24},{499,375}},{1,{24,24},{374,500}},{1,{24,24},{449,425}},{1,{24,24},{424,450}},{1,{24,24},{399,475}},{1,{24,24},{324,550}},{1,{24,24},{349,525}},{1,{24,24},{274,600}},{1,{24,24},{299,575}},{1,{24,24},{224,650}},{1,{24,24},{249,625}},{1,{24,24},{199,675}},{1,{24,24},{149,725}},{1,{24,24},{174,700}},{1,{24,24},{99,775}},{1,{24,24},{124,750}},{1,{24,24},{49,825}},{1,{24,24},{74,800}},{1,{24,24},{0,874}},{1,{24,24},{899,0}},{1,{24,24},{874,25}},{1,{24,24},{124,775}},{1,{24,24},{849,50}},{1,{24,24},{824,75}},{1,{24,24},{799,100}},{1,{24,24},{774,125}},{1,{24,24},{749,150}},{1,{24,24},{724,175}},{1,{24,24},{699,200}},{1,{24,24},{674,225}},{1,{24,24},{624,275}},{1,{24,24},{649,250}},{1,{24,24},{599,300}},{1,{24,24},{574,325}},{1,{24,24},{549,350}},{1,{24,24},{524,375}},{1,{24,24},{499,400}},{1,{24,24},{474,425}},{1,{24,24},{424,475}},{1,{24,24},{449,450}},{1,{24,24},{399,500}},{1,{24,24},{374,525}},{1,{24,24},{349,550}},{1,{24,24},{324,575}},{1,{24,24},{274,625}},{1,{24,24},{299,600}},{1,{24,24},{249,650}},{1,{24,24},{224,675}},{1,{24,24},{199,700}},{1,{24,24},{174,725}},{1,{24,24},{149,750}},{1,{24,24},{99,800}},{1,{24,24},{74,825}},{1,{24,24},{49,850}},{1,{24,24},{0,899}},{1,{24,24},{924,0}},{1,{24,24},{899,25}},{1,{24,24},{874,50}},{1,{24,24},{849,75}},{1,{24,24},{824,100}},{1,{24,24},{774,150}},{1,{24,24},{799,125}},{1,{24,24},{749,175}},{1,{24,24},{699,225}},{1,{24,24},{724,200}},{1,{24,24},{649,275}},{1,{24,24},{674,250}},{1,{24,24},{624,300}},{1,{24,24},{599,325}},{1,{24,24},{574,350}},{1,{24,24},{549,375}},{1,{24,24},{524,400}},{1,{24,24},{474,450}},{1,{24,24},{499,425}},{1,{24,24},{449,475}},{1,{24,24},{424,500}},{1,{24,24},{374,550}},{1,{24,24},{399,525}},{1,{24,24},{349,575}},{1,{24,24},{324,600}},{1,{24,24},{299,625}},{1,{24,24},{149,775}},{1,{24,24},{274,650}},{1,{24,24},{249,675}},{1,{24,24},{199,725}},{1,{24,24},{224,700}},{1,{24,24},{174,750}},{1,{24,24},{124,800}},{1,{24,24},{99,825}},{1,{24,24},{74,850}},{1,{24,24},{49,875}},{1,{24,24},{949,0}},{1,{24,24},{0,924}},{1,{24,24},{924,25}},{1,{24,24},{899,50}},{1,{24,24},{874,75}},{1,{24,24},{849,100}},{1,{24,24},{749,200}},{1,{24,24},{824,125}},{1,{24,24},{799,150}},{1,{24,24},{774,175}},{1,{24,24},{724,225}},{1,{24,24},{649,300}},{1,{24,24},{699,250}},{1,{24,24},{674,275}},{1,{24,24},{624,325}},{1,{24,24},{599,350}},{1,{24,24},{574,375}},{1,{24,24},{549,400}},{1,{24,24},{399,550}},{1,{24,24},{524,425}},{1,{24,24},{499,450}},{1,{24,24},{474,475}},{1,{24,24},{449,500}},{1,{24,24},{424,525}},{1,{24,24},{374,575}},{1,{24,24},{299,650}},{1,{24,24},{349,600}},{1,{24,24},{324,625}},{1,{24,24},{274,675}},{1,{24,24},{249,700}},{1,{24,24},{224,725}},{1,{24,24},{199,750}},{1,{24,24},{0,949}},{1,{24,24},{174,775}},{1,{24,24},{149,800}},{1,{24,24},{124,825}},{1,{24,24},{99,850}},{1,{24,24},{74,875}},{1,{24,24},{49,900}},{1,{24,24},{974,0}},{1,{24,24},{949,25}},{1,{24,24},{924,50}},{1,{24,24},{799,175}},{1,{24,24},{899,75}},{1,{24,24},{874,100}},{1,{24,24},{849,125}},{1,{24,24},{824,150}},{1,{24,24},{774,200}},{1,{24,24},{749,225}},{1,{24,24},{724,250}},{1,{24,24},{699,275}},{1,{24,24},{649,325}},{1,{24,24},{674,300}},{1,{24,24},{624,350}},{1,{24,24},{599,375}},{1,{24,24},{574,400}},{1,{24,24},{499,475}},{1,{24,24},{549,425}},{1,{24,24},{524,450}},{1,{24,24},{474,500}},{1,{24,24},{449,525}},{1,{24,24},{424,550}},{1,{24,24},{224,750}},{1,{24,24},{399,575}},{1,{24,24},{374,600}},{1,{24,24},{349,625}},{1,{24,24},{324,650}},{1,{24,24},{299,675}},{1,{24,24},{274,700}},{1,{24,24},{249,725}},{1,{24,24},{199,775}},{1,{24,24},{174,800}},{1,{24,24},{149,825}},{1,{24,24},{124,850}},{1,{24,24},{99,875}},{1,{24,24},{74,900}},{1,{24,24},{49,925}},{1,{24,24},{0,974}},{1,{24,24},{974,25}},{1,{24,24},{949,50}},{1,{24,24},{924,75}},{1,{24,24},{899,100}},{1,{24,24},{874,125}},{1,{24,24},{849,150}},{1,{24,24},{824,175}},{1,{24,24},{799,200}},{1,{24,24},{724,275}},{1,{24,24},{774,225}},{1,{24,24},{749,250}},{1,{24,24},{649,350}},{1,{24,24},{699,300}},{1,{24,24},{674,325}},{1,{24,24},{499,500}},{1,{24,24},{624,375}},{1,{24,24},{599,400}},{1,{24,24},{574,425}},{1,{24,24},{549,450}},{1,{24,24},{524,475}},{1,{24,24},{474,525}},{1,{24,24},{449,550}},{1,{24,24},{424,575}},{1,{24,24},{349,650}},{1,{24,24},{374,625}},{1,{24,24},{399,600}},{1,{24,24},{299,700}},{1,{24,24},{324,675}},{1,{24,24},{274,725}},{1,{24,24},{224,775}},{1,{24,24},{249,750}},{1,{24,24},{199,800}},{1,{24,24},{174,825}},{1,{24,24},{149,850}},{1,{24,24},{124,875}},{1,{24,24},{99,900}},{1,{24,24},{74,925}},{1,{24,24},{49,950}},{1,{24,24},{974,50}},{1,{24,24},{949,75}},{1,{24,24},{924,100}},{1,{24,24},{874,150}},{1,{24,24},{899,125}},{1,{24,24},{849,175}},{1,{24,24},{824,200}},{1,{24,24},{774,250}},{1,{24,24},{799,225}},{1,{24,24},{699,325}},{1,{24,24},{724,300}},{1,{24,24},{749,275}},{1,{24,24},{674,350}},{1,{24,24},{249,775}},{1,{24,24},{649,375}},{1,{24,24},{624,400}},{1,{24,24},{599,425}},{1,{24,24},{574,450}},{1,{24,24},{524,500}},{1,{24,24},{549,475}},{1,{24,24},{499,525}},{1,{24,24},{474,550}},{1,{24,24},{449,575}},{1,{24,24},{424,600}},{1,{24,24},{399,625}},{1,{24,24},{374,650}},{1,{24,24},{349,675}},{1,{24,24},{324,700}},{1,{24,24},{299,725}},{1,{24,24},{274,750}},{1,{24,24},{174,850}},{1,{24,24},{224,800}},{1,{24,24},{199,825}},{1,{24,24},{99,925}},{1,{24,24},{149,875}},{1,{24,24},{124,900}},{1,{24,24},{949,100}},{1,{24,24},{49,975}},{1,{24,24},{74,950}},{1,{24,24},{974,75}},{1,{24,24},{924,125}},{1,{24,24},{899,150}},{1,{24,24},{874,175}},{1,{24,24},{849,200}},{1,{24,24},{824,225}},{1,{24,24},{799,250}},{1,{24,24},{574,475}},{1,{24,24},{774,275}},{1,{24,24},{749,300}},{1,{24,24},{724,325}},{1,{24,24},{699,350}},{1,{24,24},{674,375}},{1,{24,24},{649,400}},{1,{24,24},{624,425}},{1,{24,24},{599,450}},{1,{24,24},{549,500}},{1,{24,24},{524,525}},{1,{24,24},{199,850}},{1,{24,24},{249,800}},{1,{24,24},{474,575}},{1,{24,24},{499,550}},{1,{24,24},{449,600}},{1,{24,24},{399,650}},{1,{24,24},{424,625}},{1,{24,24},{374,675}},{1,{24,24},{324,725}},{1,{24,24},{349,700}},{1,{24,24},{274,775}},{1,{24,24},{299,750}},{1,{24,24},{224,825}},{1,{24,24},{174,875}},{1,{24,24},{124,925}},{1,{24,24},{149,900}},{1,{24,24},{99,950}},{1,{24,24},{974,100}},{1,{24,24},{74,975}},{1,{24,24},{949,125}},{1,{24,24},{924,150}},{1,{24,24},{899,175}},{1,{24,24},{874,200}},{1,{24,24},{599,475}},{1,{24,24},{849,225}},{1,{24,24},{824,250}},{1,{24,24},{799,275}},{1,{24,24},{774,300}},{1,{24,24},{749,325}},{1,{24,24},{724,350}},{1,{24,24},{699,375}},{1,{24,24},{674,400}},{1,{24,24},{649,425}},{1,{24,24},{624,450}},{1,{24,24},{199,875}},{1,{24,24},{574,500}},{1,{24,24},{549,525}},{1,{24,24},{524,550}},{1,{24,24},{499,575}},{1,{24,24},{474,600}},{1,{24,24},{449,625}},{1,{24,24},{424,650}},{1,{24,24},{399,675}},{1,{24,24},{374,700}},{1,{24,24},{349,725}},{1,{24,24},{324,750}},{1,{24,24},{299,775}},{1,{24,24},{274,800}},{1,{24,24},{249,825}},{1,{24,24},{224,850}},{1,{24,24},{174,900}},{1,{24,24},{99,975}},{1,{24,24},{149,925}},{1,{24,24},{124,950}},{1,{24,24},{974,125}},{1,{24,24},{949,150}},{1,{24,24},{924,175}},{1,{24,24},{899,200}},{1,{24,24},{849,250}},{1,{24,24},{874,225}},{1,{24,24},{799,300}},{1,{24,24},{824,275}},{1,{24,24},{774,325}},{1,{24,24},{449,650}},{1,{24,24},{749,350}},{1,{24,24},{724,375}},{1,{24,24},{699,400}},{1,{24,24},{674,425}},{1,{24,24},{649,450}},{1,{24,24},{624,475}},{1,{24,24},{599,500}},{1,{24,24},{574,525}},{1,{24,24},{549,550}},{1,{24,24},{524,575}},{1,{24,24},{499,600}},{1,{24,24},{474,625}},{1,{24,24},{399,700}},{1,{24,24},{424,675}},{1,{24,24},{349,750}},{1,{24,24},{374,725}},{1,{24,24},{199,900}},{1,{24,24},{324,775}},{1,{24,24},{224,875}},{1,{24,24},{299,800}},{1,{24,24},{274,825}},{1,{24,24},{249,850}},{1,{24,24},{724,400}},{1,{24,24},{174,925}},{1,{24,24},{124,975}},{1,{24,24},{149,950}},{1,{24,24},{924,200}},{1,{24,24},{974,150}},{1,{24,24},{949,175}},{1,{24,24},{899,225}},{1,{24,24},{874,250}},{1,{24,24},{849,275}},{1,{24,24},{774,350}},{1,{24,24},{824,300}},{1,{24,24},{799,325}},{1,{24,24},{749,375}},{1,{24,24},{624,500}},{1,{24,24},{699,425}},{1,{24,24},{674,450}},{1,{24,24},{649,475}},{1,{24,24},{524,600}},{1,{24,24},{574,550}},{1,{24,24},{599,525}},{1,{24,24},{549,575}},{1,{24,24},{499,625}},{1,{24,24},{474,650}},{1,{24,24},{449,675}},{1,{24,24},{349,775}},{1,{24,24},{424,700}},{1,{24,24},{399,725}},{1,{24,24},{374,750}},{1,{24,24},{299,825}},{1,{24,24},{324,800}},{1,{24,24},{249,875}},{1,{24,24},{274,850}},{1,{24,24},{974,175}},{1,{24,24},{224,900}},{1,{24,24},{199,925}},{1,{24,24},{174,950}},{1,{24,24},{149,975}},{1,{24,24},{949,200}},{1,{24,24},{924,225}},{1,{24,24},{899,250}},{1,{24,24},{874,275}},{1,{24,24},{674,475}},{1,{24,24},{849,300}},{1,{24,24},{824,325}},{1,{24,24},{799,350}},{1,{24,24},{774,375}},{1,{24,24},{749,400}},{1,{24,24},{724,425}},{1,{24,24},{699,450}},{1,{24,24},{649,500}},{1,{24,24},{624,525}},{1,{24,24},{574,575}},{1,{24,24},{599,550}},{1,{24,24},{549,600}},{1,{24,24},{449,700}},{1,{24,24},{524,625}},{1,{24,24},{499,650}},{1,{24,24},{474,675}},{1,{24,24},{349,800}},{1,{24,24},{424,725}},{1,{24,24},{399,750}},{1,{24,24},{374,775}},{1,{24,24},{249,900}},{1,{24,24},{324,825}},{1,{24,24},{299,850}},{1,{24,24},{274,875}},{1,{24,24},{974,200}},{1,{24,24},{224,925}},{1,{24,24},{199,950}},{1,{24,24},{174,975}},{1,{24,24},{949,225}},{1,{24,24},{924,250}},{1,{24,24},{899,275}},{1,{24,24},{874,300}},{1,{24,24},{849,325}},{1,{24,24},{824,350}},{1,{24,24},{799,375}},{1,{24,24},{774,400}},{1,{24,24},{749,425}},{1,{24,24},{724,450}},{1,{24,24},{624,550}},{1,{24,24},{699,475}},{1,{24,24},{674,500}},{1,{24,24},{649,525}},{1,{24,24},{524,650}},{1,{24,24},{599,575}},{1,{24,24},{574,600}},{1,{24,24},{549,625}},{1,{24,24},{499,675}},{1,{24,24},{474,700}},{1,{24,24},{449,725}},{1,{24,24},{424,750}},{1,{24,24},{249,925}},{1,{24,24},{399,775}},{1,{24,24},{374,800}},{1,{24,24},{349,825}},{1,{24,24},{324,850}},{1,{24,24},{299,875}},{1,{24,24},{274,900}},{1,{24,24},{224,950}},{1,{24,24},{199,975}},{1,{24,24},{974,225}},{1,{24,24},{924,275}},{1,{24,24},{949,250}},{1,{24,24},{899,300}},{1,{24,24},{824,375}},{1,{24,24},{874,325}},{1,{24,24},{849,350}},{1,{24,24},{774,425}},{1,{24,24},{799,400}},{1,{24,24},{724,475}},{1,{24,24},{749,450}},{1,{24,24},{699,500}},{1,{24,24},{674,525}},{1,{24,24},{599,600}},{1,{24,24},{649,550}},{1,{24,24},{624,575}},{1,{24,24},{574,625}},{1,{24,24},{499,700}},{1,{24,24},{549,650}},{1,{24,24},{524,675}},{1,{24,24},{474,725}},{1,{24,24},{424,775}},{1,{24,24},{449,750}},{1,{24,24},{399,800}},{1,{24,24},{349,850}},{1,{24,24},{374,825}},{1,{24,24},{324,875}},{1,{24,24},{299,900}},{1,{24,24},{274,925}},{1,{24,24},{224,975}},{1,{24,24},{249,950}},{1,{24,24},{974,250}},{1,{24,24},{924,300}},{1,{24,24},{949,275}},{1,{24,24},{899,325}},{1,{24,24},{874,350}},{1,{24,24},{849,375}},{1,{24,24},{824,400}},{1,{24,24},{799,425}},{1,{24,24},{774,450}},{1,{24,24},{749,475}},{1,{24,24},{724,500}},{1,{24,24},{699,525}},{1,{24,24},{674,550}},{1,{24,24},{599,625}},{1,{24,24},{649,575}},{1,{24,24},{624,600}},{1,{24,24},{574,650}},{1,{24,24},{549,675}},{1,{24,24},{524,700}},{1,{24,24},{499,725}},{1,{24,24},{474,750}},{1,{24,24},{249,975}},{1,{24,24},{449,775}},{1,{24,24},{424,800}},{1,{24,24},{399,825}},{1,{24,24},{374,850}},{1,{24,24},{349,875}},{1,{24,24},{324,900}},{1,{24,24},{299,925}},{1,{24,24},{274,950}},{1,{24,24},{974,275}},{1,{24,24},{949,300}},{1,{24,24},{924,325}},{1,{24,24},{899,350}},{1,{24,24},{824,425}},{1,{24,24},{874,375}},{1,{24,24},{849,400}},{1,{24,24},{774,475}},{1,{24,24},{799,450}},{1,{24,24},{724,525}},{1,{24,24},{749,500}},{1,{24,24},{699,550}},{1,{24,24},{674,575}},{1,{24,24},{649,600}},{1,{24,24},{574,675}},{1,{24,24},{624,625}},{1,{24,24},{599,650}},{1,{24,24},{524,725}},{1,{24,24},{549,700}},{1,{24,24},{474,775}},{1,{24,24},{499,750}},{1,{24,24},{449,800}},{1,{24,24},{424,825}},{1,{24,24},{399,850}},{1,{24,24},{374,875}},{1,{24,24},{349,900}},{1,{24,24},{324,925}},{1,{24,24},{274,975}},{1,{24,24},{299,950}},{1,{24,24},{949,325}},{1,{24,24},{974,300}},{1,{24,24},{899,375}},{1,{24,24},{924,350}},{1,{24,24},{874,400}},{1,{24,24},{849,425}},{1,{24,24},{824,450}},{1,{24,24},{799,475}},{1,{24,24},{774,500}},{1,{24,24},{749,525}},{1,{24,24},{724,550}},{1,{24,24},{699,575}},{1,{24,24},{674,600}},{1,{24,24},{649,625}},{1,{24,24},{599,675}},{1,{24,24},{624,650}},{1,{24,24},{524,750}},{1,{24,24},{574,700}},{1,{24,24},{549,725}},{1,{24,24},{474,800}},{1,{24,24},{499,775}},{1,{24,24},{449,825}},{1,{24,24},{924,375}},{1,{24,24},{424,850}},{1,{24,24},{399,875}},{1,{24,24},{374,900}},{1,{24,24},{349,925}},{1,{24,24},{324,950}},{1,{24,24},{299,975}},{1,{24,24},{974,325}},{1,{24,24},{949,350}},{1,{24,24},{899,400}},{1,{24,24},{849,450}},{1,{24,24},{874,425}},{1,{24,24},{799,500}},{1,{24,24},{824,475}},{1,{24,24},{749,550}},{1,{24,24},{774,525}},{1,{24,24},{624,675}},{1,{24,24},{724,575}},{1,{24,24},{699,600}},{1,{24,24},{674,625}},{1,{24,24},{649,650}},{1,{24,24},{599,700}},{1,{24,24},{524,775}},{1,{24,24},{574,725}},{1,{24,24},{549,750}},{1,{24,24},{499,800}},{1,{24,24},{474,825}},{1,{24,24},{374,925}},{1,{24,24},{449,850}},{1,{24,24},{424,875}},{1,{24,24},{399,900}},{1,{24,24},{324,975}},{1,{24,24},{349,950}},{1,{24,24},{974,350}},{1,{24,24},{924,400}},{1,{24,24},{949,375}},{1,{24,24},{899,425}},{1,{24,24},{874,450}},{1,{24,24},{599,725}},{1,{24,24},{849,475}},{1,{24,24},{824,500}},{1,{24,24},{799,525}},{1,{24,24},{774,550}},{1,{24,24},{749,575}},{1,{24,24},{724,600}},{1,{24,24},{699,625}},{1,{24,24},{674,650}},{1,{24,24},{649,675}},{1,{24,24},{624,700}},{1,{24,24},{549,775}},{1,{24,24},{574,750}},{1,{24,24},{524,800}},{1,{24,24},{499,825}},{1,{24,24},{474,850}},{1,{24,24},{449,875}},{1,{24,24},{424,900}},{1,{24,24},{399,925}},{1,{24,24},{374,950}},{1,{24,24},{349,975}},{1,{24,24},{974,375}},{1,{24,24},{949,400}},{1,{24,24},{824,525}},{1,{24,24},{924,425}},{1,{24,24},{899,450}},{1,{24,24},{874,475}},{1,{24,24},{849,500}},{1,{24,24},{799,550}},{1,{24,24},{749,600}},{1,{24,24},{774,575}},{1,{24,24},{724,625}},{1,{24,24},{699,650}},{1,{24,24},{674,675}},{1,{24,24},{649,700}},{1,{24,24},{624,725}},{1,{24,24},{599,750}},{1,{24,24},{574,775}},{1,{24,24},{549,800}},{1,{24,24},{524,825}},{1,{24,24},{449,900}},{1,{24,24},{499,850}},{1,{24,24},{474,875}},{1,{24,24},{399,950}},{1,{24,24},{424,925}},{1,{24,24},{374,975}},{1,{24,24},{974,400}},{1,{24,24},{949,425}},{1,{24,24},{924,450}},{1,{24,24},{899,475}},{1,{24,24},{874,500}},{1,{24,24},{849,525}},{1,{24,24},{824,550}},{1,{24,24},{799,575}},{1,{24,24},{774,600}},{1,{24,24},{724,650}},{1,{24,24},{749,625}},{1,{24,24},{699,675}},{1,{24,24},{674,700}},{1,{24,24},{649,725}},{1,{24,24},{624,750}},{1,{24,24},{874,575}},{1,{24,24},{599,775}},{1,{24,24},{524,850}},{1,{24,24},{574,800}},{1,{24,24},{549,825}},{1,{24,24},{499,875}},{1,{24,24},{474,900}},{1,{24,24},{449,925}},{1,{24,24},{424,950}},{1,{24,24},{399,975}},{1,{24,24},{974,425}},{1,{24,24},{899,500}},{1,{24,24},{949,450}},{1,{24,24},{924,475}},{1,{24,24},{874,525}},{1,{24,24},{849,550}},{1,{24,24},{824,575}},{1,{24,24},{774,625}},{1,{24,24},{799,600}},{1,{24,24},{749,650}},{1,{24,24},{724,675}},{1,{24,24},{699,700}},{1,{24,24},{674,725}},{1,{24,24},{649,750}},{1,{24,24},{524,875}},{1,{24,24},{599,800}},{1,{24,24},{624,775}},{1,{24,24},{574,825}},{1,{24,24},{549,850}},{1,{24,24},{499,900}},{1,{24,24},{474,925}},{1,{24,24},{449,950}},{1,{24,24},{424,975}},{1,{24,24},{974,450}},{1,{24,24},{949,475}},{1,{24,24},{924,500}},{1,{24,24},{899,525}},{1,{24,24},{874,550}},{1,{24,24},{849,575}},{1,{24,24},{799,625}},{1,{24,24},{824,600}},{1,{24,24},{774,650}},{1,{24,24},{749,675}},{1,{24,24},{724,700}},{1,{24,24},{699,725}},{1,{24,24},{674,750}},{1,{24,24},{649,775}},{1,{24,24},{624,800}},{1,{24,24},{599,825}},{1,{48,48},{0,0}},{1,{24,24},{574,850}},{1,{24,24},{549,875}},{1,{24,24},{524,900}},{1,{24,24},{499,925}},{1,{24,24},{474,950}},{1,{24,24},{449,975}},{1,{24,24},{974,475}},{1,{24,24},{924,525}},{1,{24,24},{949,500}},{1,{24,24},{899,550}},{1,{24,24},{849,600}},{1,{24,24},{824,625}},{1,{24,24},{799,650}},{1,{24,24},{724,725}},{1,{24,24},{774,675}},{1,{24,24},{749,700}},{1,{24,24},{699,750}},{1,{24,24},{674,775}},{1,{24,24},{649,800}},{1,{24,24},{624,825}},{1,{24,24},{599,850}},{1,{24,24},{574,875}},{1,{24,24},{549,900}},{1,{24,24},{524,925}},{1,{24,24},{499,950}},{1,{24,24},{474,975}},{1,{24,24},{874,600}},{1,{24,24},{974,500}},{1,{24,24},{949,525}},{1,{24,24},{924,550}},{1,{24,24},{899,575}},{1,{24,24},{849,625}},{1,{24,24},{824,650}},{1,{24,24},{799,675}},{1,{24,24},{774,700}},{1,{24,24},{749,725}},{1,{24,24},{724,750}},{1,{24,24},{699,775}},{1,{24,24},{674,800}},{1,{24,24},{649,825}},{1,{24,24},{949,550}},{1,{24,24},{624,850}},{1,{24,24},{599,875}},{1,{24,24},{574,900}},{1,{24,24},{549,925}},{1,{24,24},{524,950}},{1,{24,24},{499,975}},{1,{24,24},{974,525}},{1,{24,24},{899,600}},{1,{24,24},{924,575}},{1,{24,24},{874,625}},{1,{24,24},{849,650}},{1,{24,24},{824,675}},{1,{24,24},{799,700}},{1,{24,24},{774,725}},{1,{24,24},{749,750}},{1,{24,24},{724,775}},{1,{24,24},{699,800}},{1,{24,24},{674,825}},{1,{24,24},{649,850}},{1,{24,24},{624,875}},{1,{24,24},{574,925}},{1,{24,24},{599,900}},{1,{24,24},{549,950}},{1,{24,24},{974,550}},{1,{24,24},{524,975}},{1,{24,24},{949,575}},{1,{24,24},{799,725}},{1,{24,24},{899,625}},{1,{24,24},{924,600}},{1,{24,24},{874,650}},{1,{24,24},{849,675}},{1,{24,24},{824,700}},{1,{24,24},{774,750}},{1,{24,24},{699,825}},{1,{24,24},{749,775}},{1,{24,24},{724,800}},{1,{24,24},{674,850}},{1,{24,24},{649,875}},{1,{24,24},{924,625}},{1,{24,24},{624,900}},{1,{24,24},{599,925}},{1,{24,24},{574,950}},{1,{24,24},{549,975}},{1,{24,24},{974,575}},{1,{24,24},{949,600}},{1,{24,24},{874,675}},{1,{24,24},{899,650}},{1,{24,24},{799,750}},{1,{24,24},{849,700}},{1,{24,24},{824,725}},{1,{24,24},{774,775}},{1,{24,24},{749,800}},{1,{24,24},{724,825}},{1,{24,24},{699,850}},{1,{24,24},{674,875}},{1,{24,24},{624,925}},{1,{24,24},{649,900}},{1,{24,24},{599,950}},{1,{24,24},{574,975}},{1,{24,24},{974,600}},{1,{24,24},{949,625}},{1,{24,24},{899,675}},{1,{24,24},{924,650}},{1,{24,24},{874,700}},{1,{24,24},{849,725}},{1,{24,24},{799,775}},{1,{24,24},{824,750}},{1,{24,24},{774,800}},{1,{24,24},{749,825}},{1,{24,24},{724,850}},{1,{24,24},{699,875}},{1,{24,24},{674,900}},{1,{24,24},{649,925}},{1,{24,24},{599,975}},{1,{24,24},{624,950}},{1,{24,24},{924,675}},{1,{24,24},{974,625}},{1,{24,24},{949,650}},{1,{24,24},{899,700}},{1,{24,24},{874,725}},{1,{24,24},{849,750}},{1,{24,24},{774,825}},{1,{24,24},{799,800}},{1,{24,24},{824,775}},{1,{24,24},{749,850}},{1,{24,24},{724,875}},{1,{24,24},{674,925}},{1,{24,24},{699,900}},{1,{24,24},{624,975}},{1,{24,24},{649,950}},{1,{24,24},{974,650}},{1,{24,24},{899,725}},{1,{24,24},{949,675}},{1,{24,24},{924,700}},{1,{24,24},{874,750}},{1,{24,24},{849,775}},{1,{24,24},{824,800}},{1,{24,24},{799,825}},{1,{24,24},{749,875}},{1,{24,24},{774,850}},{1,{24,24},{724,900}},{1,{24,24},{699,925}},{1,{24,24},{674,950}},{1,{24,24},{949,725}},{1,{24,24},{649,975}},{1,{24,24},{974,675}},{1,{24,24},{949,700}},{1,{24,24},{924,725}},{1,{24,24},{899,750}},{1,{24,24},{699,950}},{1,{24,24},{874,775}},{1,{24,24},{849,800}},{1,{24,24},{824,825}},{1,{24,24},{799,850}},{1,{24,24},{774,875}},{1,{24,24},{749,900}},{1,{24,24},{724,925}},{1,{24,24},{674,975}},{1,{24,24},{974,700}},{1,{24,24},{899,775}},{1,{24,24},{924,750}},{1,{24,24},{849,825}},{1,{24,24},{874,800}},{1,{24,24},{824,850}},{1,{24,24},{799,875}},{1,{24,24},{774,900}},{1,{24,24},{749,925}},{1,{24,24},{724,950}},{1,{24,24},{974,725}},{1,{24,24},{699,975}},{1,{24,24},{924,775}},{1,{24,24},{949,750}},{1,{24,24},{899,800}},{1,{24,24},{874,825}},{1,{24,24},{849,850}},{1,{24,24},{824,875}},{1,{24,24},{974,750}},{1,{24,24},{799,900}},{1,{24,24},{774,925}},{1,{24,24},{749,950}},{1,{24,24},{724,975}},{1,{24,24},{949,775}},{1,{24,24},{874,850}},{1,{24,24},{924,800}},{1,{24,24},{899,825}},{1,{24,24},{849,875}},{1,{24,24},{799,925}},{1,{24,24},{824,900}},{1,{24,24},{774,950}},{1,{24,24},{749,975}},{1,{24,24},{974,775}},{1,{24,24},{924,825}},{1,{24,24},{949,800}},{1,{24,24},{899,850}},{1,{24,24},{874,875}},{1,{24,24},{824,925}},{1,{24,24},{849,900}},{1,{24,24},{799,950}},{1,{24,24},{974,800}},{1,{24,24},{774,975}},{1,{24,24},{949,825}},{1,{24,24},{824,950}},{1,{24,24},{924,850}},{1,{24,24},{899,875}},{1,{24,24},{874,900}},{1,{24,24},{849,925}},{1,{24,24},{974,825}},{1,{24,24},{799,975}},{1,{24,24},{924,875}},{1,{24,24},{949,850}},{1,{24,24},{899,900}},{1,{24,24},{874,925}},{1,{24,24},{849,950}},{1,{24,24},{824,975}},{1,{24,24},{974,850}},{1,{24,24},{949,875}},{1,{24,24},{899,925}},{1,{24,24},{924,900}},{1,{24,24},{874,950}},{1,{24,24},{849,975}},{2,{24,24},{0,0}}}}}
-local iconIndices: { string } = icons[1]
-local idIndices: { string } = icons[2]
-local iconRegistry: { [number]: { number | { number } } } = icons[3]
-
-Lucide.Icons = iconIndices
-function Lucide.GetAsset(name: string)
-	local size = 48
-
-	local iconIndex = table.find(iconIndices, name)
-
-	if not iconIndex then
-		return nil
-	end
-
-	local currentDifference = math.huge
-	local currentSize = size
-
-	for registrySize, _ in iconRegistry do
-		local diff = math.abs(size - registrySize)
-
-		if diff < currentDifference then
-			currentDifference = diff
-			currentSize = registrySize
-		end
-	end
-
-	local icon = iconRegistry[currentSize][iconIndex]
-	if icon then
-		return {
-			IconName = name,
-			Id = tonumber(idIndices[icon[1]]),
-			Url = "rbxassetid://" .. idIndices[icon[1]],
-			ImageRectSize = Vector2.new(icon[2][1], icon[2][2]),
-			ImageRectOffset = Vector2.new(icon[3][1], icon[3][2]),
-		}
-	end
-
-	return nil
+function IsValidCustomIcon(Icon: string)
+    return typeof(Icon) == "string" and (Icon:match("rbxasset") or Icon:match("roblox%.com/asset/%?id=") or Icon:match("rbxthumb://type="))
 end
-    
-return Lucide
 
-    end)
+local FetchIcons, Icons = pcall(function()
+    return loadstring(
+        game:HttpGet("https://raw.githubusercontent.com/ntmc0987se/abc/refs/heads/main/d")
+    )()
 end)
 function Library:GetIcon(IconName: string)
     if not FetchIcons then
@@ -891,6 +961,19 @@ function Library:GetIcon(IconName: string)
         return
     end
     return Icon
+end
+
+function Library:GetCustomIcon(IconName: string)
+    if not IsValidCustomIcon(IconName) then
+        return Library:GetIcon(IconName)
+    else
+        return {
+            Url = IconName,
+            ImageRectOffset = Vector2.zero,
+            ImageRectSize = Vector2.zero,
+            Custom = true
+        }
+    end
 end
 
 function Library:Validate(Table: { [string]: any }, Template: { [string]: any }): { [string]: any }
@@ -975,22 +1058,22 @@ end
 
 --// Main Instances \\-
 local function SafeParentUI(Instance: Instance, Parent: Instance | () -> Instance)
-    if
-        not pcall(function()
-            if not Parent then
-                Parent = CoreGui
-            end
+    local success, _error = pcall(function()
+        if not Parent then
+            Parent = CoreGui
+        end
 
-            local DestinationParent
-            if typeof(Parent) == "function" then
-                DestinationParent = Parent()
-            else
-                DestinationParent = Parent
-            end
+        local DestinationParent
+        if typeof(Parent) == "function" then
+            DestinationParent = Parent()
+        else
+            DestinationParent = Parent
+        end
 
-            Instance.Parent = DestinationParent
-        end)
-    then
+        Instance.Parent = DestinationParent
+    end)
+
+    if not (success and Instance.Parent) then
         Instance.Parent = Library.LocalPlayer:WaitForChild("PlayerGui", math.huge)
     end
 end
@@ -1002,7 +1085,6 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
     end
 
     pcall(protectgui, UI)
-
     SafeParentUI(UI, gethui)
 end
 
@@ -1019,19 +1101,16 @@ ScreenGui.DescendantRemoving:Connect(function(Instance)
 end)
 
 local ModalScreenGui = New("ScreenGui", {
-    Name = "ObsidianModal",
-    DisplayOrder = -999,
-    IgnoreGuiInset = true,
+    Name = "ObsidanModal",
+    DisplayOrder = 999,
     ResetOnSpawn = false,
-    Enabled = false,
 })
 ParentUI(ModalScreenGui, true)
 
---[[ local ModalElement = --]] New("TextButton", {
+local ModalElement = New("TextButton", {
     BackgroundTransparency = 1,
-    Modal = true,
-    Size = UDim2.fromScale(1, 1),
-    AnchorPoint = Vector2.zero,
+    Modal = false,
+    Size = UDim2.fromScale(0, 0),
     Text = "",
     ZIndex = -999,
     Parent = ModalScreenGui,
@@ -1140,19 +1219,20 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
-    local Success, Response = pcall(Func, ...)
-    if Success then
-        return Response
+    local Result = table.pack(xpcall(Func, function(Error)
+        task.defer(error, debug.traceback(Error, 2))
+        if Library.NotifyOnError then
+            Library:Notify(Error)
+        end
+
+        return Error
+    end, ...))
+
+    if not Result[1] then
+        return nil
     end
 
-    local Traceback = debug.traceback():gsub("\n", " ")
-    local _, i = Traceback:find(":%d+ ")
-    Traceback = Traceback:sub(i + 1):gsub(" :", ":")
-
-    task.defer(error, Response .. " - " .. Traceback)
-    if Library.NotifyOnError then
-        Library:Notify(Response)
-    end
+    return table.unpack(Result, 2, Result.n)
 end
 
 function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggled: boolean?, IsMainWindow: boolean?)
@@ -1413,6 +1493,68 @@ function Library:AddDraggableMenu(Name: string)
 
     Library:MakeDraggable(Background, Label, true)
     return Background, Container
+end
+
+--// Watermark \\--
+do
+    local WatermarkBackground = Library:MakeOutline(ScreenGui, Library.CornerRadius, 10)
+    WatermarkBackground.AutomaticSize = Enum.AutomaticSize.Y
+    WatermarkBackground.Position = UDim2.fromOffset(6, 6)
+    WatermarkBackground.Size = UDim2.fromOffset(0, 0)
+    WatermarkBackground.Visible = false
+
+    Library:UpdateDPI(WatermarkBackground, {
+        Position = false,
+        Size = false,
+    })
+
+    local Holder = New("Frame", {
+        BackgroundColor3 = "BackgroundColor",
+        Position = UDim2.fromOffset(2, 2),
+        Size = UDim2.new(1, -4, 1, -4),
+        Parent = WatermarkBackground,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius - 1),
+        Parent = Holder,
+    })
+
+    local WatermarkLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 32),
+        Position = UDim2.fromOffset(0, -8 * Library.DPIScale + 7),
+        Text = "",
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = Holder,
+    })
+    New("UIPadding", {
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+        Parent = WatermarkLabel,
+    })
+
+    Library:MakeDraggable(WatermarkBackground, WatermarkLabel, true)
+
+    local function ResizeWatermark()
+        local X, Y = Library:GetTextBounds(WatermarkLabel.Text, Library.Scheme.Font, 15)
+        WatermarkBackground.Size = UDim2.fromOffset((12 + X + 12 + 4) * Library.DPIScale, Y * Library.DPIScale * 2 + 4)
+        Library:UpdateDPI(WatermarkBackground, {
+            Size = UDim2.fromOffset(12 + X + 12 + 4, Y * 2 + 4),
+        })
+    end
+
+    function Library:SetWatermarkVisibility(Visible: boolean)
+        WatermarkBackground.Visible = Visible
+        if Visible then
+            ResizeWatermark()
+        end
+    end
+
+    function Library:SetWatermark(Text: string)
+        WatermarkLabel.Text = Text
+        ResizeWatermark()
+    end
 end
 
 --// Context Menu \\--
@@ -1720,10 +1862,30 @@ do
             Type = "KeyPicker",
         }
 
+        if KeyPicker.Mode == "Press" then
+            assert(ParentObj.Type == "Label", "KeyPicker with the mode 'Press' can be only applied on Labels.")
+            
+            KeyPicker.SyncToggleState = false
+            Info.Modes = { "Press" }
+            Info.Mode = "Press"
+        end
+
         if KeyPicker.SyncToggleState then
             Info.Modes = { "Toggle" }
             Info.Mode = "Toggle"
         end
+
+        local SpecialKeys = {
+            ["MB1"] = Enum.UserInputType.MouseButton1,
+            ["MB2"] = Enum.UserInputType.MouseButton2,
+            ["MB3"] = Enum.UserInputType.MouseButton3
+        }
+
+        local SpecialKeysInput = {
+            [Enum.UserInputType.MouseButton1] = "MB1",
+            [Enum.UserInputType.MouseButton2] = "MB2",
+            [Enum.UserInputType.MouseButton3] = "MB3"
+        }
 
         local Picker = New("TextButton", {
             BackgroundColor3 = "MainColor",
@@ -1735,10 +1897,7 @@ do
             Parent = ToggleLabel,
         })
 
-        local KeybindsToggle = {
-            Normal = KeyPicker.Mode ~= "Toggle",
-        }
-        do
+        local KeybindsToggle = { Normal = KeyPicker.Mode ~= "Toggle" }; do
             local Holder = New("TextButton", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 16),
@@ -1925,15 +2084,13 @@ do
                     return false
                 end
 
-                if Key == "MB1" or Key == "MB2" then
-                    return Key == "MB1" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-                        or Key == "MB2" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-                end
-
-                return UserInputService:IsKeyDown(Enum.KeyCode[KeyPicker.Value])
-                    and not UserInputService:GetFocusedTextBox()
+                if SpecialKeys[Key] ~= nil then
+                    return UserInputService:IsMouseButtonPressed(SpecialKeys[Key]) and not UserInputService:GetFocusedTextBox();
+                else
+                    return UserInputService:IsKeyDown(Enum.KeyCode[Key]) and not UserInputService:GetFocusedTextBox();
+                end;
             else
-                return KeyPicker.Toggled
+                return KeyPicker.Toggled;
             end
         end
 
@@ -1946,12 +2103,24 @@ do
         end
 
         function KeyPicker:DoClick()
+            if KeyPicker.Mode == "Press" then
+                if KeyPicker.Toggled and Info.WaitForCallback == true then
+                    return
+                end
+
+                KeyPicker.Toggled = true
+            end
+
             if ParentObj.Type == "Toggle" and KeyPicker.SyncToggleState then
                 ParentObj:SetValue(KeyPicker.Toggled)
             end
 
             Library:SafeCallback(KeyPicker.Callback, KeyPicker.Toggled)
             Library:SafeCallback(KeyPicker.Changed, KeyPicker.Toggled)
+
+            if KeyPicker.Mode == "Press" then
+                KeyPicker.Toggled = false
+            end
         end
 
         function KeyPicker:SetValue(Data)
@@ -1984,12 +2153,11 @@ do
             local Input = UserInputService.InputBegan:Wait()
             local Key = "Unknown"
 
-            if Input.UserInputType == Enum.UserInputType.Keyboard then
+            if SpecialKeysInput[Input.UserInputType] ~= nil then
+                Key = SpecialKeysInput[Input.UserInputType];
+
+            elseif Input.UserInputType == Enum.UserInputType.Keyboard then
                 Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name
-            elseif Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                Key = "MB1"
-            elseif Input.UserInputType == Enum.UserInputType.MouseButton2 then
-                Key = "MB2"
             end
 
             KeyPicker.Value = Key
@@ -2020,19 +2188,26 @@ do
                 return
             end
 
-            if KeyPicker.Mode == "Toggle" then
-                local Key = KeyPicker.Value
+            local Key = KeyPicker.Value
+            local HoldingKey = false
 
-                if Key == "MB1" or Key == "MB2" then
-                    if
-                        Key == "MB1" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-                        or Key == "MB2" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-                    then
-                        KeyPicker.Toggled = not KeyPicker.Toggled
-                        KeyPicker:DoClick()
-                    end
-                elseif Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode.Name == Key then
+            if 
+                Key and (
+                    SpecialKeysInput[Input.UserInputType] == Key or 
+                    (Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode.Name == Key)
+                ) 
+            then
+                HoldingKey = true
+            end
+
+            if KeyPicker.Mode == "Toggle" then
+                if HoldingKey then
                     KeyPicker.Toggled = not KeyPicker.Toggled
+                    KeyPicker:DoClick()
+                end
+
+            elseif KeyPicker.Mode == "Press" then
+                if HoldingKey then
                     KeyPicker:DoClick()
                 end
             end
@@ -2077,6 +2252,7 @@ do
         local ColorPicker = {
             Value = Info.Default,
             Transparency = Info.Transparency or 0,
+            Title = Info.Title,
 
             Callback = Info.Callback,
             Changed = Info.Changed,
@@ -2095,7 +2271,7 @@ do
         })
 
         local HolderTransparency = New("ImageLabel", {
-            Image = "rbxassetid://139785960036434",
+            Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
             ImageTransparency = (1 - ColorPicker.Transparency),
             ScaleType = Enum.ScaleType.Tile,
             Size = UDim2.fromScale(1, 1),
@@ -2123,11 +2299,11 @@ do
             Parent = ColorMenu.Menu,
         })
 
-        if typeof(Info.Title) == "string" then
+        if typeof(ColorPicker.Title) == "string" then
             New("TextLabel", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 8),
-                Text = Info.Title,
+                Text = ColorPicker.Title,
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = ColorMenu.Menu,
@@ -2148,7 +2324,7 @@ do
         --// Sat Map
         local SatVipMap = New("ImageButton", {
             BackgroundColor3 = ColorPicker.Value,
-            Image = "rbxassetid://4155801252",
+            Image = ObsidianImageManager.GetAsset("SaturationMap"),
             Size = UDim2.fromOffset(200, 200),
             Parent = ColorHolder,
         })
@@ -2194,7 +2370,7 @@ do
         local TransparencySelector, TransparencyColor, TransparencyCursor
         if Info.Transparency then
             TransparencySelector = New("ImageButton", {
-                Image = "rbxassetid://139785960036434",
+                Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
                 ScaleType = Enum.ScaleType.Tile,
                 Size = UDim2.fromOffset(16, 200),
                 TileSize = UDim2.fromOffset(8, 8),
@@ -2355,20 +2531,20 @@ do
 
             ColorPicker.Transparency = Info.Transparency and Transparency or 0
             ColorPicker:SetHSVFromRGB(Color)
-            ColorPicker:Display()
+            ColorPicker:Update()
         end
 
         function ColorPicker:SetValueRGB(Color, Transparency)
             ColorPicker.Transparency = Info.Transparency and Transparency or 0
             ColorPicker:SetHSVFromRGB(Color)
-            ColorPicker:Display()
+            ColorPicker:Update()
         end
 
         Holder.MouseButton1Click:Connect(ColorMenu.Toggle)
         Holder.MouseButton2Click:Connect(ContextMenu.Toggle)
 
         SatVipMap.InputBegan:Connect(function(Input: InputObject)
-            while IsClickInput(Input) do
+            while IsDragInput(Input) do
                 local MinX = SatVipMap.AbsolutePosition.X
                 local MaxX = MinX + SatVipMap.AbsoluteSize.X
                 local LocationX = math.clamp(Mouse.X, MinX, MaxX)
@@ -2390,7 +2566,7 @@ do
             end
         end)
         HueSelector.InputBegan:Connect(function(Input: InputObject)
-            while IsClickInput(Input) do
+            while IsDragInput(Input) do
                 local Min = HueSelector.AbsolutePosition.Y
                 local Max = Min + HueSelector.AbsoluteSize.Y
                 local Location = math.clamp(Mouse.Y, Min, Max)
@@ -2407,7 +2583,7 @@ do
         end)
         if TransparencySelector then
             TransparencySelector.InputBegan:Connect(function(Input: InputObject)
-                while IsClickInput(Input) do
+                while IsDragInput(Input) do
                     local Min = TransparencySelector.AbsolutePosition.Y
                     local Max = TransparencySelector.AbsolutePosition.Y + TransparencySelector.AbsoluteSize.Y
                     local Location = math.clamp(Mouse.Y, Min, Max)
@@ -2492,6 +2668,7 @@ do
 
     function Funcs:AddLabel(...)
         local Data = {}
+        local Addons = {}
 
         local First = select(1, ...)
         local Second = select(2, ...)
@@ -2518,6 +2695,8 @@ do
         local Label = {
             Text = Data.Text,
             DoesWrap = Data.DoesWrap,
+
+            Addons = Addons,
 
             Visible = Data.Visible,
             Type = "Label",
@@ -3482,7 +3661,6 @@ do
         local Groupbox = self
         local Container = Groupbox.Container
 
-        local Dragging = false
         local Slider = {
             Text = Info.Text,
             Value = Info.Default,
@@ -3491,6 +3669,8 @@ do
 
             Prefix = Info.Prefix,
             Suffix = Info.Suffix,
+            Compact = Info.Compact,
+            Rounding = Info.Rounding,
 
             Tooltip = Info.Tooltip,
             DisabledTooltip = Info.DisabledTooltip,
@@ -3580,20 +3760,29 @@ do
                 return
             end
 
-            if Info.Compact then
-                DisplayLabel.Text = string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
-            elseif Info.HideMax then
-                DisplayLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
+            local CustomDisplayText = nil
+            if Info.FormatDisplayValue then
+                CustomDisplayText = Info.FormatDisplayValue(Slider, Slider.Value)
+            end
+
+            if CustomDisplayText then
+                DisplayLabel.Text = tostring(CustomDisplayText)
             else
-                DisplayLabel.Text = string.format(
-                    "%s%s%s/%s%s%s",
-                    Slider.Prefix,
-                    Slider.Value,
-                    Slider.Suffix,
-                    Slider.Prefix,
-                    Slider.Max,
-                    Slider.Suffix
-                )
+                if Info.Compact then
+                    DisplayLabel.Text = string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
+                elseif Info.HideMax then
+                    DisplayLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
+                else
+                    DisplayLabel.Text = string.format(
+                        "%s%s%s/%s%s%s",
+                        Slider.Prefix,
+                        Slider.Value,
+                        Slider.Suffix,
+                        Slider.Prefix,
+                        Slider.Max,
+                        Slider.Suffix
+                    )
+                end
             end
 
             local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
@@ -3685,12 +3874,12 @@ do
                 Side.ScrollingEnabled = false
             end
 
-            while IsClickInput(Input) do
+            while IsDragInput(Input) do
                 local Location = Mouse.X
                 local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
 
                 local OldValue = Slider.Value
-                Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
+                Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Slider.Rounding)
 
                 Slider:Display()
                 if Slider.Value ~= OldValue then
@@ -3741,6 +3930,7 @@ do
             Value = Info.Multi and {} or nil,
             Values = Info.Values,
             DisabledValues = Info.DisabledValues,
+            Multi = Info.Multi,
 
             SpecialType = Info.SpecialType,
             ExcludeLocalPlayer = Info.ExcludeLocalPlayer,
@@ -3998,6 +4188,7 @@ do
 
                         Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                         Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+                        Library:UpdateDependencyBoxes()
                     end)
                 end
 
@@ -4037,6 +4228,7 @@ do
             if not Dropdown.Disabled then
                 Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                 Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+                Library:UpdateDependencyBoxes()
             end
         end
 
@@ -4166,6 +4358,411 @@ do
         return Dropdown
     end
 
+    function Funcs:AddViewport(Idx, Info)
+        Info = Library:Validate(Info, Templates.Viewport)
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        local Dragging, Pinching = false, false
+        local LastMousePos, LastPinchDist = nil, 0
+
+        local ViewportObject = Info.Object
+        if Info.Clone and typeof(Info.Object) == "Instance" then
+            if Info.Object.Archivable then
+                ViewportObject = ViewportObject:Clone()
+            else
+                Info.Object.Archivable = true
+                ViewportObject = ViewportObject:Clone()
+                Info.Object.Archivable = false
+            end
+        end
+
+        local Viewport = {
+            Object = ViewportObject,
+            Camera = if not Info.Camera then Instance.new("Camera") else Info.Camera,
+            Interactive = Info.Interactive,
+            AutoFocus = Info.AutoFocus,
+            Visible = Info.Visible,
+            Type = "Viewport",
+        }
+
+        assert(
+            typeof(Viewport.Object) == "Instance" and (Viewport.Object:IsA("BasePart") or Viewport.Object:IsA("Model")),
+            "Instance must be a BasePart or Model."
+        )
+
+        assert(
+            typeof(Viewport.Camera) == "Instance" and Viewport.Camera:IsA("Camera"),
+            "Camera must be a valid Camera instance."
+        )
+
+        local function GetModelSize(model)
+            if model:IsA("BasePart") then
+                return model.Size
+            end
+
+            return select(2, model:GetBoundingBox())
+        end
+
+        local function FocusCamera()
+            local ModelSize = GetModelSize(Viewport.Object)
+            local MaxExtent = math.max(ModelSize.X, ModelSize.Y, ModelSize.Z)
+            local CameraDistance = MaxExtent * 2
+            local ModelPosition = Viewport.Object:GetPivot().Position
+
+            Viewport.Camera.CFrame =
+                CFrame.new(ModelPosition + Vector3.new(0, MaxExtent / 2, CameraDistance), ModelPosition)
+        end
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, Info.Height),
+            Visible = Viewport.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            BorderColor3 = "OutlineColor",
+            BorderSizePixel = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 3),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 4),
+            Parent = Box,
+        })
+
+        local ViewportFrame = New("ViewportFrame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Box,
+            CurrentCamera = Viewport.Camera,
+            Active = Viewport.Interactive,
+        })
+
+        ViewportFrame.MouseEnter:Connect(function()
+            if not Viewport.Interactive then
+                return
+            end
+
+            for _, Side in pairs(Groupbox.Tab.Sides) do
+                Side.ScrollingEnabled = false
+            end
+        end)
+
+        ViewportFrame.MouseLeave:Connect(function()
+            if not Viewport.Interactive then
+                return
+            end
+
+            for _, Side in pairs(Groupbox.Tab.Sides) do
+                Side.ScrollingEnabled = true
+            end
+        end)
+
+        ViewportFrame.InputBegan:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = true
+                LastMousePos = input.Position
+            elseif input.UserInputType == Enum.UserInputType.Touch and not Pinching then
+                Dragging = true
+                LastMousePos = input.Position
+            end
+        end)
+
+        Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = false
+            elseif input.UserInputType == Enum.UserInputType.Touch then
+                Dragging = false
+            end
+        end))
+
+        Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+            if not Viewport.Interactive or not Dragging or Pinching then
+                return
+            end
+
+            if
+                input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch
+            then
+                local MouseDelta = input.Position - LastMousePos
+                LastMousePos = input.Position
+
+                local Position = Viewport.Object:GetPivot().Position
+                local Camera = Viewport.Camera
+
+                local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), -MouseDelta.X * 0.01)
+                Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
+
+                local RotationX = CFrame.fromAxisAngle(Camera.CFrame.RightVector, -MouseDelta.Y * 0.01)
+                local PitchedCFrame = CFrame.new(Position) * RotationX * CFrame.new(-Position) * Camera.CFrame
+
+                if PitchedCFrame.UpVector.Y > 0.1 then
+                    Camera.CFrame = PitchedCFrame
+                end
+            end
+        end))
+
+        ViewportFrame.InputChanged:Connect(function(input)
+            if not Viewport.Interactive then
+                return
+            end
+
+            if input.UserInputType == Enum.UserInputType.MouseWheel then
+                local ZoomAmount = input.Position.Z * 2
+                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+            end
+        end)
+
+        Library:GiveSignal(UserInputService.TouchPinch:Connect(function(touchPositions, scale, velocity, state)
+            if not Viewport.Interactive or not Library:MouseIsOverFrame(ViewportFrame, touchPositions[1]) then
+                return
+            end
+
+            if state == Enum.UserInputState.Begin then
+                Pinching = true
+                Dragging = false
+                LastPinchDist = (touchPositions[1] - touchPositions[2]).Magnitude
+            elseif state == Enum.UserInputState.Change then
+                local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
+                local delta = (currentDist - LastPinchDist) * 0.1
+                LastPinchDist = currentDist
+                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+            elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+                Pinching = false
+            end
+        end))
+
+        Viewport.Object.Parent = ViewportFrame
+        if Viewport.AutoFocus then
+            FocusCamera()
+        end
+
+        function Viewport:SetObject(Object: Instance, Clone: boolean?)
+            assert(Object, "Object cannot be nil.")
+
+            if Clone then
+                Object = Object:Clone()
+            end
+
+            if Viewport.Object then
+                Viewport.Object:Destroy()
+            end
+
+            Viewport.Object = Object
+            Viewport.Object.Parent = ViewportFrame
+
+            Groupbox:Resize()
+        end
+
+        function Viewport:SetHeight(Height: number)
+            assert(Height > 0, "Height must be greater than 0.")
+
+            Holder.Size = UDim2.new(1, 0, 0, Height)
+            Groupbox:Resize()
+        end
+
+        function Viewport:Focus()
+            if not Viewport.Object then
+                return
+            end
+
+            FocusCamera()
+        end
+
+        function Viewport:SetCamera(Camera: Instance)
+            assert(
+                Camera and typeof(Camera) == "Instance" and Camera:IsA("Camera"),
+                "Camera must be a valid Camera instance."
+            )
+
+            Viewport.Camera = Camera
+            ViewportFrame.CurrentCamera = Camera
+        end
+
+        function Viewport:SetInteractive(Interactive: boolean)
+            Viewport.Interactive = Interactive
+            ViewportFrame.Active = Interactive
+        end
+
+        function Viewport:SetVisible(Visible: boolean)
+            Viewport.Visible = Visible
+
+            Holder.Visible = Viewport.Visible
+            Groupbox:Resize()
+        end
+
+        Groupbox:Resize()
+
+        Viewport.Holder = Holder
+        table.insert(Groupbox.Elements, Viewport)
+
+        Options[Idx] = Viewport
+
+        return Viewport
+    end
+
+    function Funcs:AddImage(Idx, Info)
+        Info = Library:Validate(Info, Templates.Image)
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        local Image = {
+            Image = Info.Image,
+            Color = Info.Color,
+            RectOffset = Info.RectOffset,
+            RectSize = Info.RectSize,
+            Height = Info.Height,
+            ScaleType = Info.ScaleType,
+            Transparency = Info.Transparency,
+
+            Visible = Info.Visible,
+            Type = "Image",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, Info.Height),
+            Visible = Image.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            BorderColor3 = "OutlineColor",
+            BorderSizePixel = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 3),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 4),
+            Parent = Box,
+        })
+
+        local ImageProperties = {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Image = Image.Image,
+            ImageTransparency = Image.Transparency,
+            ImageColor3 = Image.Color,
+            ImageRectOffset = Image.RectOffset,
+            ImageRectSize = Image.RectSize,
+            ScaleType = Image.ScaleType,
+            Parent = Box,
+        }
+
+        local Icon = Library:GetCustomIcon(ImageProperties.Image)
+        assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
+        ImageProperties.Image = Icon.Url
+        ImageProperties.ImageRectOffset = Icon.ImageRectOffset
+        ImageProperties.ImageRectSize = Icon.ImageRectSize
+
+        local ImageLabel = New("ImageLabel", ImageProperties)
+
+        function Image:SetHeight(Height: number)
+            assert(Height > 0, "Height must be greater than 0.")
+
+            Image.Height = Height
+            Holder.Size = UDim2.new(1, 0, 0, Height)
+            Groupbox:Resize()
+        end
+
+        function Image:SetImage(NewImage: string)
+            assert(typeof(NewImage) == "string", "Image must be a string.")
+
+            local Icon = Library:GetCustomIcon(NewImage)
+            assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
+            NewImage = Icon.Url
+            Image.RectOffset = Icon.ImageRectOffset
+            Image.RectSize = Icon.ImageRectSize
+
+            ImageLabel.Image = NewImage
+            Image.Image = NewImage
+        end
+
+        function Image:SetColor(Color: Color3)
+            assert(typeof(Color) == "Color3", "Color must be a Color3 value.")
+
+            ImageLabel.ImageColor3 = Color
+            Image.Color = Color
+        end
+
+        function Image:SetRectOffset(RectOffset: Vector2)
+            assert(typeof(RectOffset) == "Vector2", "RectOffset must be a Vector2 value.")
+
+            ImageLabel.ImageRectOffset = RectOffset
+            Image.RectOffset = RectOffset
+        end
+
+        function Image:SetRectSize(RectSize: Vector2)
+            assert(typeof(RectSize) == "Vector2", "RectSize must be a Vector2 value.")
+
+            ImageLabel.ImageRectSize = RectSize
+            Image.RectSize = RectSize
+        end
+
+        function Image:SetScaleType(ScaleType: Enum.ScaleType)
+            assert(
+                typeof(ScaleType) == "EnumItem" and ScaleType:IsA("ScaleType"),
+                "ScaleType must be a valid Enum.ScaleType."
+            )
+
+            ImageLabel.ScaleType = ScaleType
+            Image.ScaleType = ScaleType
+        end
+
+        function Image:SetTransparency(Transparency: number)
+            assert(typeof(Transparency) == "number", "Transparency must be a number between 0 and 1.")
+            assert(Transparency >= 0 and Transparency <= 1, "Transparency must be between 0 and 1.")
+
+            ImageLabel.ImageTransparency = Transparency
+            Image.Transparency = Transparency
+        end
+
+        function Image:SetVisible(Visible: boolean)
+            Image.Visible = Visible
+
+            Holder.Visible = Image.Visible
+            Groupbox:Resize()
+        end
+
+        Groupbox:Resize()
+
+        Image.Holder = Holder
+        table.insert(Groupbox.Elements, Image)
+
+        Options[Idx] = Image
+
+        return Image
+    end
+
     function Funcs:AddDependencyBox()
         local Groupbox = self
         local Container = Groupbox.Container
@@ -4212,6 +4809,20 @@ do
                     DepboxContainer.Visible = false
                     Depbox.Visible = false
                     return
+                elseif Element.Type == "Dropdown" then
+                    if typeof(Element.Value) == "table" then
+                        if not Element.Value[Value] then
+                            DepboxContainer.Visible = false
+                            Depbox.Visible = false
+                            return
+                        end
+                    else
+                        if Element.Value ~= Value then
+                            DepboxContainer.Visible = false
+                            Depbox.Visible = false
+                            return
+                        end
+                    end
                 end
             end
 
@@ -4313,6 +4924,20 @@ do
                     Background.Visible = false
                     DepGroupbox.Visible = false
                     return
+                elseif Element.Type == "Dropdown" then
+                    if typeof(Element.Value) == "table" then
+                        if not Element.Value[Value] then
+                            Background.Visible = false
+                            DepGroupbox.Visible = false
+                            return
+                        end
+                    else
+                        if Element.Value ~= Value then
+                            Background.Visible = false
+                            DepGroupbox.Visible = false
+                            return
+                        end
+                    end
                 end
             end
 
@@ -4574,8 +5199,13 @@ function Library:Notify(...)
         TimerFill.Size = UDim2.fromScale(0, 1)
     end
     if Data.SoundId then
+        local SoundId = Data.SoundId
+        if typeof(SoundId) == "number" then
+            SoundId = string.format("rbxassetid://%d", SoundId)
+        end
+
         New("Sound", {
-            SoundId = "rbxassetid://" .. tostring(Data.SoundId):gsub("rbxassetid://", ""),
+            SoundId = SoundId,
             Volume = 3,
             PlayOnRemove = true,
             Parent = SoundService,
@@ -4641,8 +5271,12 @@ function Library:CreateWindow(WindowInfo)
     Library.Scheme.Font = WindowInfo.Font
     Library.ToggleKeybind = WindowInfo.ToggleKeybind
 
+    local IsDefaultSearchbarSize = WindowInfo.SearchbarSize == UDim2.fromScale(1, 1)
     local MainFrame
     local SearchBox
+    local CurrentTabInfo
+    local CurrentTabLabel
+    local CurrentTabDescription
     local ResizeButton
     local Tabs
     local Container
@@ -4671,7 +5305,7 @@ function Library:CreateWindow(WindowInfo)
             },
         })
         New("UICorner", {
-            CornerRadius = UDim.new(0, WindowInfo.CornerRadius - 1),
+            CornerRadius = UDim.new(0, 8),
             Parent = MainFrame,
         })
         do
@@ -4694,6 +5328,19 @@ function Library:CreateWindow(WindowInfo)
                 Library:MakeLine(MainFrame, Info)
             end
             Library:MakeOutline(MainFrame, WindowInfo.CornerRadius, 0)
+        end
+
+        if WindowInfo.BackgroundImage then
+            New("ImageLabel", {
+                Image = WindowInfo.BackgroundImage,
+                Position = UDim2.fromScale(0, 0),
+                Size = UDim2.fromScale(1, 1),
+                ScaleType = Enum.ScaleType.Stretch,
+                ZIndex = 999,
+                BackgroundTransparency = 1,
+                ImageTransparency = 0.75,
+                Parent = MainFrame,
+            })
         end
 
         if WindowInfo.Center then
@@ -4724,7 +5371,7 @@ function Library:CreateWindow(WindowInfo)
 
         if WindowInfo.Icon then
             New("ImageLabel", {
-                Image = tonumber(WindowInfo.Icon) and "rbxassetid://" .. WindowInfo.Icon or WindowInfo.Icon,
+                Image = if tonumber(WindowInfo.Icon) then string.format("rbxassetid://%d", WindowInfo.Icon) else WindowInfo.Icon,
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
@@ -4744,15 +5391,74 @@ function Library:CreateWindow(WindowInfo)
             Parent = TitleHolder,
         })
 
-        --// Search Box
-        SearchBox = New("TextBox", {
+        --// Top Right Bar
+        local RightWrapper = New("Frame", {
+            BackgroundTransparency = 1,
             AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundColor3 = "MainColor",
-            PlaceholderText = "Search",
             Position = UDim2.new(0.3, 8, 0.5, 0),
             Size = UDim2.new(0.7, -57, 1, -16),
-            TextScaled = true,
             Parent = TopBar,
+        })
+
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 8),
+            Parent = RightWrapper,
+        })
+
+        CurrentTabInfo = New("Frame", {
+            Size = UDim2.fromScale(WindowInfo.DisableSearch and 1 or 0.5, 1),
+            Visible = false,
+            BackgroundTransparency = 1,
+            Parent = RightWrapper,
+        })
+
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = CurrentTabInfo,
+        })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 8),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 8),
+            Parent = CurrentTabInfo,
+        })
+
+        CurrentTabLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Text = "",
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = CurrentTabInfo,
+        })
+
+        CurrentTabDescription = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Text = "",
+            TextWrapped = true,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTransparency = 0.5,
+            Parent = CurrentTabInfo,
+        })
+
+        SearchBox = New("TextBox", {
+            BackgroundColor3 = "MainColor",
+            PlaceholderText = "Search",
+            Size = WindowInfo.SearchbarSize,
+            TextScaled = true,
+            Visible = not (WindowInfo.DisableSearch or false),
+            Parent = RightWrapper,
         })
         New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
@@ -4784,6 +5490,312 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
+    --]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
+        MainFrame.ClipsDescendants = true
+        local TweenService = game:GetService("TweenService")
+        local function CreateTween(Configs)
+	local Instance = Configs[1] or Configs.Instance
+	local Prop = Configs[2] or Configs.Prop
+	local NewVal = Configs[3] or Configs.NewVal
+	local Time = Configs[4] or Configs.Time or 0.5
+	local TweenWait = Configs[5] or Configs.wait or false
+	local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Quint)
+	
+	local Tween = TweenService:Create(Instance, TweenInfo, {[Prop] = NewVal})
+	Tween:Play()
+	if TweenWait then
+		Tween.Completed:Wait()
+	end
+	return Tween
+end
+local currentTween = nil
+local isVisible = true
+
+local TweenService = game:GetService("TweenService")
+
+local function CancelCurrentTween()
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+end
+
+local function CreateAndPlayTween(instance, tweenInfo, properties, callback)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    if callback then
+        local conn
+        conn = tween.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                callback()
+                conn:Disconnect()
+            end
+        end)
+    end
+    return tween
+end
+
+local function AnimateShow(frame)
+    CancelCurrentTween()
+    if not frame:GetAttribute("OriginalSize") then
+        frame:SetAttribute("OriginalSize", frame.Size)
+    end
+    if not frame:GetAttribute("OriginalPosition") then
+        frame:SetAttribute("OriginalPosition", frame.Position)
+    end
+    local targetSize = frame:GetAttribute("OriginalSize")
+    local targetPosition = frame:GetAttribute("OriginalPosition")
+    frame.Size = UDim2.new(0.8, 0, 0.8, 0)
+    frame.BackgroundTransparency = 1
+    frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+    frame.Visible = true 
+
+    local tweenInfo = TweenInfo.new(0.33, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    currentTween = CreateAndPlayTween(frame, tweenInfo, {
+        Size = targetSize,
+        BackgroundTransparency = 0,
+        Position = targetPosition,
+    })
+end
+
+local function AnimateHide(frame)
+    CancelCurrentTween()
+    local hideSize = UDim2.new(0.8, 0, 0.8, 0)
+    local hidePosition = UDim2.new(0.1, 0, 0.1, 0)
+    local hideTransparency = 1
+    local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+    currentTween = CreateAndPlayTween(frame, tweenInfo, {
+        Size = hideSize,
+        BackgroundTransparency = hideTransparency,
+        Position = hidePosition
+    }, function()
+        frame.Visible = false
+        frame.Size = hideSize
+        frame.BackgroundTransparency = hideTransparency
+        frame.Position = hidePosition
+    end)
+end
+
+local C = game:GetService("CoreGui")
+local s = Instance.new("ScreenGui")
+local t = Instance.new("TextButton")
+local u = Instance.new("UICorner")
+
+s.Parent = C
+s.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+t.Parent = s
+t.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+t.BorderColor3 = Color3.fromRGB(0, 0, 0)
+t.BorderSizePixel = 0
+t.Position = UDim2.new(0.136, 0, 0.216, 0)
+t.Size = UDim2.new(0, 45, 0, 45)
+t.Font = Enum.Font.FredokaOne
+t.Text = "ON"
+t.TextColor3 = Color3.fromRGB(192, 192, 192)
+t.TextSize = 18.000
+t.Draggable = true
+
+u.Parent = t
+u.CornerRadius = UDim.new(0, 8)
+
+local buttonHoverTween = nil
+local buttonClickTween = nil
+
+t.MouseEnter:Connect(function()
+    if buttonHoverTween then buttonHoverTween:Cancel() end
+    buttonHoverTween = CreateAndPlayTween(
+        t, 
+        TweenInfo.new(0.11, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+        {
+            BackgroundColor3 = Color3.fromRGB(65, 65, 65),
+            Size = UDim2.new(0, 47, 0, 47)
+        }
+    )
+end)
+
+t.MouseLeave:Connect(function()
+    if buttonHoverTween then buttonHoverTween:Cancel() end
+    buttonHoverTween = CreateAndPlayTween(
+        t, 
+        TweenInfo.new(0.11, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+        {
+            BackgroundColor3 = Color3.fromRGB(50, 50, 50),
+            Size = UDim2.new(0, 45, 0, 45)
+        }
+    )
+end)
+
+t.MouseButton1Down:Connect(function()
+    if buttonClickTween then buttonClickTween:Cancel() end
+    buttonClickTween = CreateAndPlayTween(
+        t, 
+        TweenInfo.new(0.07, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {
+            Size = UDim2.new(0, 43, 0, 43)
+        }
+    )
+end)
+
+t.MouseButton1Up:Connect(function()
+    if buttonClickTween then buttonClickTween:Cancel() end
+    buttonClickTween = CreateAndPlayTween(
+        t, 
+        TweenInfo.new(0.09, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.new(0, 47, 0, 47)
+        }
+    )
+end)
+
+t.MouseButton1Click:Connect(function()
+    isVisible = not isVisible
+    t.Text = isVisible and "ON" or "OFF"
+    t.TextColor3 = isVisible and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(255, 120, 120)
+    
+    if isVisible then
+        AnimateShow(MainFrame)
+    else
+        AnimateHide(MainFrame)
+    end
+end)
+local function testw()
+    wait(0.5)
+AnimateShow(MainFrame)
+wait(0.5)
+AnimateHide(MainFrame)
+end
+testw()
+function Dialogsui()
+    if MainFrame:FindFirstChild("Dialogsui") then return end
+    local DTitle = "You want to close this script?"
+    local DText ="This action can't be undone. Are you sure?"
+    local DOptions = {
+        {"Confirm", function() MainFrame:Destroy() s:Destroy() end},
+        {"Cancel", function() end}
+    }
+
+    local abc = Instance.new("UICorner")
+    local abcd = Instance.new("UICorner")
+
+    local Fdc = Instance.new("Frame")
+    Fdc.Active = true
+    Fdc.Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08)
+    Fdc.Position = UDim2.fromScale(0.5, 0.5)
+    Fdc.AnchorPoint = Vector2.new(0.5, 0.5)
+    Fdc.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    abc.Parent = Fdc
+
+    local Tdc = Instance.new("TextLabel")
+    Tdc.Font = Enum.Font.GothamBold
+    Tdc.Size = UDim2.new(1, 0, 0, 20)
+    Tdc.Text = DTitle
+    Tdc.TextXAlignment = Enum.TextXAlignment.Left
+    Tdc.TextColor3 = Color3.new(1, 1, 1)
+    Tdc.TextSize = 15
+    Tdc.Position = UDim2.fromOffset(15, 5)
+    Tdc.BackgroundTransparency = 1
+    Tdc.Parent = Fdc
+
+    local Tsb = Instance.new("TextLabel")
+    Tsb.Font = Enum.Font.GothamMedium
+    Tsb.Size = UDim2.new(1, -25, 0, 0)
+    Tsb.AutomaticSize = Enum.AutomaticSize.Y
+    Tsb.Text = DText
+    Tsb.TextXAlignment = Enum.TextXAlignment.Left
+    Tsb.TextColor3 = Color3.new(1, 1, 1)
+    Tsb.TextSize = 12
+    Tsb.Position = UDim2.fromOffset(15, 25)
+    Tsb.BackgroundTransparency = 1
+    Tsb.TextWrapped = true
+    Tsb.Parent = Fdc
+
+    local Bdc = Instance.new("Frame")
+    Bdc.Size = UDim2.fromScale(1, 0.35)
+    Bdc.Position = UDim2.fromScale(0, 1)
+    Bdc.AnchorPoint = Vector2.new(0, 1)
+    Bdc.BackgroundColor3 = Color3.new(0, 0, 0)
+    Bdc.BackgroundTransparency = 1
+    Bdc.Parent = Fdc
+
+    local Sdc = Instance.new("Frame")
+    Sdc.BackgroundTransparency = 0.6
+    Sdc.Active = true
+    Sdc.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+    Sdc.Size = UDim2.new(1, 0, 1, 0)
+    Sdc.Name = "Dialogsui"
+    Sdc.Parent = MainFrame
+    Fdc.Parent = Sdc
+
+    CreateTween({Fdc, "Size", UDim2.fromOffset(250, 150), 0.2})
+    CreateTween({Fdc, "Transparency", 0, 0.15})
+    CreateTween({Sdc, "Transparency", 0.3, 0.15})
+
+    local Dialogsui = {}
+
+    function Dialogsui:Button(Configs)
+        local Name = Configs.Name or Configs.Title or Configs[1] or ""
+        local Callback = Configs.Callback or Configs[2] or function() end
+
+        local Button = Instance.new("TextButton")
+        Button.Text = Name
+        Button.Font = Enum.Font.GothamBold
+        Button.TextColor3 = Color3.new(1, 1, 1)
+        Button.TextSize = 12
+        Button.BackgroundColor3 = (Name == "Confirm" or Name == "Yes") and Color3.fromRGB(40, 120, 40) or Color3.fromRGB(120, 40, 40)
+        Button.Size = UDim2.new(0, 100, 0, 32)
+        Button.AutoButtonColor = true
+        Button.Parent = Bdc
+
+        if Name == "Confirm" or Name == "Yes" then
+            Button.Position = UDim2.new(0, 15, 0, 0)
+            Button.AnchorPoint = Vector2.new(0, 0)
+        elseif Name == "Cancel" or Name == "No" then
+            Button.Position = UDim2.new(1, -15, 0, 0)
+            Button.AnchorPoint = Vector2.new(1, 0)
+        end
+
+        local Corner = Instance.new("UICorner")
+        Corner.Parent = Button
+
+        Button.Activated:Connect(function()
+            Dialogsui:Close()
+            Callback()
+        end)
+    end
+
+    function Dialogsui:Close()
+        CreateTween({Fdc, "Size", UDim2.fromOffset(250 * 1.08, 150 * 1.08), 0.2})
+        CreateTween({Sdc, "Transparency", 1, 0.15})
+        CreateTween({Fdc, "Transparency", 1, 0.15, true})
+        Sdc:Destroy()
+    end
+
+    for _, Btn in ipairs(DOptions) do
+        Dialogsui:Button(Btn)
+    end
+end
+
+
+local MoveIcon = Library:GetIcon("x")
+if MoveIcon then
+    local hid = New("ImageButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Image = MoveIcon.Url,
+        ImageColor3 = "OutlineColor",
+        ImageRectOffset = MoveIcon.ImageRectOffset,
+        ImageRectSize = MoveIcon.ImageRectSize,
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(28, 28),
+        SizeConstraint = Enum.SizeConstraint.RelativeYY,
+        Parent = TopBar,
+    })
+
+    hid.MouseButton1Click:Connect(function()
+        Dialogsui()
+    end)
+end
+--]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
 
         --// Bottom Bar \\--
         local BottomBar = New("Frame", {
@@ -4887,7 +5899,22 @@ function Library:CreateWindow(WindowInfo)
     --// Window Table \\--
     local Window = {}
 
-    function Window:AddTab(Name: string, Icon)
+    function Window:AddTab(...)
+        local Name = nil
+        local Icon = nil
+        local Description = nil
+
+        if select("#", ...) == 1 and typeof(...) == "table" then
+            local Info = select(1, ...)
+            Name = Info.Name or "Tab"
+            Icon = Info.Icon
+            Description = Info.Description
+        else
+            Name = select(1, ...)
+            Icon = select(2, ...)
+            Description = select(3, ...)
+        end
+
         local TabButton: TextButton
         local TabLabel
         local TabIcon
@@ -4895,13 +5922,14 @@ function Library:CreateWindow(WindowInfo)
         local TabContainer
         local TabLeft
         local TabRight
-
+		
         local WarningBox
+        local WarningBoxScrollingFrame
         local WarningTitle
         local WarningText
         local WarningStroke
 
-        Icon = Library:GetIcon(Icon)
+        Icon = Library:GetCustomIcon(Icon)
         do
             TabButton = New("TextButton", {
                 BackgroundColor3 = "MainColor",
@@ -4933,7 +5961,7 @@ function Library:CreateWindow(WindowInfo)
             if Icon then
                 TabIcon = New("ImageLabel", {
                     Image = Icon.Url,
-                    ImageColor3 = "AccentColor",
+                    ImageColor3 = Icon.Custom and "White" or "AccentColor",
                     ImageRectOffset = Icon.ImageRectOffset,
                     ImageRectSize = Icon.ImageRectSize,
                     ImageTransparency = 0.5,
@@ -5007,6 +6035,7 @@ function Library:CreateWindow(WindowInfo)
                 Library:UpdateDPI(TabRight, { Size = TabRight.Size })
             end
 
+            --// Warning Box \\--
             WarningBox = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundColor3 = Color3.fromRGB(127, 0, 0),
@@ -5018,22 +6047,33 @@ function Library:CreateWindow(WindowInfo)
                 Visible = false,
                 Parent = TabContainer,
             })
+
+            WarningBoxScrollingFrame = New("ScrollingFrame", {
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, -3),
+                Size = UDim2.new(1, 0, 1, -3),
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                ScrollBarThickness = 3,
+                Parent = WarningBox,
+            })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
                 PaddingLeft = UDim.new(0, 6),
                 PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
             })
 
             WarningTitle = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 14),
+                Size = UDim2.new(1, -4, 0, 14),
                 Text = "",
                 TextColor3 = Color3.fromRGB(255, 50, 50),
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
             })
             WarningStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5045,12 +6085,13 @@ function Library:CreateWindow(WindowInfo)
             WarningText = New("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(0, 16),
-                Size = UDim2.fromScale(1, 0),
+                Size = UDim2.new(1, -4, 0, 0),
                 Text = "",
                 TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
                 TextWrapped = true,
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top,
             })
             New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5069,37 +6110,31 @@ function Library:CreateWindow(WindowInfo)
                 TabLeft,
                 TabRight,
             },
+            WarningBox = {
+                IsNormal = false,
+                LockSize = false,
+                Visible = false,
+                Title = "WARNING",
+                Text = ""
+            }
         }
+
         function Tab:UpdateWarningBox(Info)
-            if typeof(Info.Visible) == "boolean" then
-                WarningBox.Visible = Info.Visible
-                Tab:Resize()
-            end
+            if typeof(Info.IsNormal) == "boolean"   then Tab.WarningBox.IsNormal    = Info.IsNormal end
+            if typeof(Info.LockSize) == "boolean"   then Tab.WarningBox.LockSize    = Info.LockSize end
+            if typeof(Info.Visible) == "boolean"    then Tab.WarningBox.Visible     = Info.Visible end
+            if typeof(Info.Title) == "string"       then Tab.WarningBox.Title       = Info.Title end
+            if typeof(Info.Text) == "string"        then Tab.WarningBox.Text        = Info.Text end
 
-            if typeof(Info.Title) == "string" then
-                WarningTitle.Text = Info.Title
-            end
+            WarningBox.Visible = Tab.WarningBox.Visible
+            WarningTitle.Text = Tab.WarningBox.Title
+            WarningText.Text = Tab.WarningBox.Text
+            Tab:Resize(true)
 
-            if typeof(Info.Text) == "string" then
-                local _, Y = Library:GetTextBounds(
-                    Info.Text,
-                    Library.Scheme.Font,
-                    WarningText.TextSize,
-                    WarningText.AbsoluteSize.X
-                )
-
-                WarningText.Size = UDim2.new(1, 0, 0, Y)
-                WarningText.Text = Info.Text
-                Library:UpdateDPI(WarningText, { Size = WarningText.Size })
-                Tab:Resize()
-            end
-
-            WarningBox.BackgroundColor3 = Info.IsNormal == true and Library.Scheme.BackgroundColor
-                or Color3.fromRGB(127, 0, 0)
-            WarningBox.BorderColor3 = Info.IsNormal == true and Library.Scheme.OutlineColor
-                or Color3.fromRGB(255, 50, 50)
-            WarningTitle.TextColor3 = Info.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
-            WarningStroke.Color = Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
+            WarningBox.BackgroundColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
+            WarningBox.BorderColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
+            WarningTitle.TextColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
+            WarningStroke.Color = Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
 
             if not Library.Registry[WarningBox] then
                 Library:AddToRegistry(WarningBox, {})
@@ -5112,33 +6147,45 @@ function Library:CreateWindow(WindowInfo)
             end
 
             Library.Registry[WarningBox].BackgroundColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
             end
 
             Library.Registry[WarningBox].BorderColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
             end
 
             Library.Registry[WarningTitle].TextColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
             end
 
             Library.Registry[WarningStroke].Color = function()
-                return Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
             end
         end
 
         function Tab:Resize(ResizeWarningBox: boolean?)
             if ResizeWarningBox then
-                local _, Y = Library:GetTextBounds(
+                local MaximumSize = math.floor(TabContainer.AbsoluteSize.Y / 3.25)
+                local _, YText = Library:GetTextBounds(
                     WarningText.Text,
                     Library.Scheme.Font,
                     WarningText.TextSize,
                     WarningText.AbsoluteSize.X
                 )
 
-                WarningText.Size = UDim2.new(1, 0, 0, Y)
+                local YBox = 24 + YText
+                if Tab.WarningBox.LockSize == true and YBox >= MaximumSize then
+                    WarningBoxScrollingFrame.CanvasSize = UDim2.fromOffset(0, YBox)
+                    YBox = MaximumSize
+                else
+                    WarningBoxScrollingFrame.CanvasSize = UDim2.fromOffset(0, 0)
+                end
+
+                WarningText.Size = UDim2.new(1, -4, 0, YText)
                 Library:UpdateDPI(WarningText, { Size = WarningText.Size })
+
+                WarningBox.Size = UDim2.new(1, 0, 0, YBox)
+                Library:UpdateDPI(WarningBox, { Size = WarningBox.Size })
             end
 
             local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0
@@ -5192,11 +6239,11 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.new(1, 0, 0, 1),
                 })
 
-                local BoxIcon = Library:GetIcon(Info.IconName)
+                local BoxIcon = Library:GetCustomIcon(Info.IconName)
                 if BoxIcon then
                     New("ImageLabel", {
                         Image = BoxIcon.Url,
-                        ImageColor3 = "AccentColor",
+                        ImageColor3 = BoxIcon.Custom and "White" or "AccentColor",
                         ImageRectOffset = BoxIcon.ImageRectOffset,
                         ImageRectSize = BoxIcon.ImageRectSize,
                         Position = UDim2.fromOffset(6, 6),
@@ -5461,6 +6508,18 @@ function Library:CreateWindow(WindowInfo)
                     ImageTransparency = 0,
                 }):Play()
             end
+
+            if Description then
+                CurrentTabInfo.Visible = true
+                
+                if IsDefaultSearchbarSize then
+                    SearchBox.Size = UDim2.fromScale(0.5, 1)
+                end
+
+                CurrentTabLabel.Text = Name
+                CurrentTabDescription.Text = Description
+            end
+
             TabContainer.Visible = true
 
             Library.ActiveTab = Tab
@@ -5479,6 +6538,12 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
             TabContainer.Visible = false
+
+            if IsDefaultSearchbarSize then
+                SearchBox.Size = UDim2.fromScale(1, 1)
+            end
+            
+            CurrentTabInfo.Visible = false
 
             Library.ActiveTab = nil
         end
@@ -5717,7 +6782,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         MainFrame.Visible = Library.Toggled
-         ModalScreenGui.Enabled = Library.Toggled
+        ModalElement.Modal = Library.Toggled
 
         if Library.Toggled and not Library.IsMobile then
             local OldMouseIconEnabled = UserInputService.MouseIconEnabled
@@ -5752,7 +6817,7 @@ function Library:CreateWindow(WindowInfo)
     if WindowInfo.AutoShow then
         task.spawn(Library.Toggle)
     end
---[[
+
     if Library.IsMobile then
         local ToggleButton = Library:AddDraggableButton("Toggle", function()
             Library:Toggle()
@@ -5772,7 +6837,7 @@ function Library:CreateWindow(WindowInfo)
         else
             LockButton.Button.Position = UDim2.fromOffset(6, 46)
         end
-    end]]
+    end
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -5832,1589 +6897,3 @@ Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
 
 getgenv().Library = Library
 return Library
-
-end)
-local ThemeManager = (function()
-	local cloneref = (cloneref or clonereference or function(instance: any) return instance end)
-local httpService = cloneref(game:GetService("HttpService"))
-local httprequest = (syn and syn.request) or request or http_request or (http and http.request)
-local getassetfunc = getcustomasset or getsynasset
-local isfolder, isfile, listfiles = isfolder, isfile, listfiles
-
-if typeof(copyfunction) == "function" then
-    -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
-
-    local
-        isfolder_copy,
-        isfile_copy,
-        listfiles_copy = copyfunction(isfolder), copyfunction(isfile), copyfunction(listfiles)
-
-    local isfolder_success, isfolder_error = pcall(function()
-        return isfolder_copy("test" .. tostring(math.random(1000000, 9999999)))
-    end)
-
-    if isfolder_success == false or typeof(isfolder_error) ~= "boolean" then
-        isfolder = function(folder)
-            local success, data = pcall(isfolder_copy, folder)
-            return (if success then data else false)
-        end
-
-        isfile = function(file)
-            local success, data = pcall(isfile_copy, file)
-            return (if success then data else false)
-        end
-
-        listfiles = function(folder)
-            local success, data = pcall(listfiles_copy, folder)
-            return (if success then data else {})
-        end
-    end
-end
-
-local ThemeManager = {} do
-    ThemeManager.Folder = "ObsidianLibSettings"
-    -- if not isfolder(ThemeManager.Folder) then makefolder(ThemeManager.Folder) end
-
-    ThemeManager.Library = nil
-    ThemeManager.BuiltInThemes = {
-        ["Default"] 		= { 1, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"191919","AccentColor":"7d55ff","BackgroundColor":"0f0f0f","OutlineColor":"282828"}]]) },
-        ["BBot"] 			= { 2, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"1e1e1e","AccentColor":"7e48a3","BackgroundColor":"232323","OutlineColor":"141414"}]]) },
-        ["Fatality"]		= { 3, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"1e1842","AccentColor":"c50754","BackgroundColor":"191335","OutlineColor":"3c355d"}]]) },
-        ["Jester"] 			= { 4, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"242424","AccentColor":"db4467","BackgroundColor":"1c1c1c","OutlineColor":"373737"}]]) },
-        ["Mint"] 			= { 5, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"242424","AccentColor":"3db488","BackgroundColor":"1c1c1c","OutlineColor":"373737"}]]) },
-        ["Tokyo Night"] 	= { 6, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"191925","AccentColor":"6759b3","BackgroundColor":"16161f","OutlineColor":"323232"}]]) },
-        ["Ubuntu"] 			= { 7, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"3e3e3e","AccentColor":"e2581e","BackgroundColor":"323232","OutlineColor":"191919"}]]) },
-        ["Quartz"] 			= { 8, httpService:JSONDecode([[{"FontColor":"ffffff","MainColor":"232330","AccentColor":"426e87","BackgroundColor":"1d1b26","OutlineColor":"27232f"}]]) },
-        ["Nord"] 			= { 9, httpService:JSONDecode([[{"FontColor":"eceff4","MainColor":"3b4252","AccentColor":"88c0d0","BackgroundColor":"2e3440","OutlineColor":"4c566a"}]]) },
-        ["Dracula"] 		= { 10, httpService:JSONDecode([[{"FontColor":"f8f8f2","MainColor":"44475a","AccentColor":"ff79c6","BackgroundColor":"282a36","OutlineColor":"6272a4"}]]) },
-        ["Monokai"] 		= { 11, httpService:JSONDecode([[{"FontColor":"f8f8f2","MainColor":"272822","AccentColor":"f92672","BackgroundColor":"1e1f1c","OutlineColor":"49483e"}]]) },
-        ["Gruvbox"] 		= { 12, httpService:JSONDecode([[{"FontColor":"ebdbb2","MainColor":"3c3836","AccentColor":"fb4934","BackgroundColor":"282828","OutlineColor":"504945"}]]) },
-        ["Solarized"] 		= { 13, httpService:JSONDecode([[{"FontColor":"839496","MainColor":"073642","AccentColor":"cb4b16","BackgroundColor":"002b36","OutlineColor":"586e75"}]]) },
-        ["Catppuccin"] 		= { 14, httpService:JSONDecode([[{"FontColor":"d9e0ee","MainColor":"302d41","AccentColor":"f5c2e7","BackgroundColor":"1e1e2e","OutlineColor":"575268"}]]) },
-        ["One Dark"] 		= { 15, httpService:JSONDecode([[{"FontColor":"abb2bf","MainColor":"282c34","AccentColor":"c678dd","BackgroundColor":"21252b","OutlineColor":"5c6370"}]]) },
-        ["Cyberpunk"] 		= { 16, httpService:JSONDecode([[{"FontColor":"f9f9f9","MainColor":"262335","AccentColor":"00ff9f","BackgroundColor":"1a1a2e","OutlineColor":"413c5e"}]]) },
-        ["Oceanic Next"] 	= { 17, httpService:JSONDecode([[{"FontColor":"d8dee9","MainColor":"1b2b34","AccentColor":"6699cc","BackgroundColor":"16232a","OutlineColor":"343d46"}]]) },
-        ["Material"] 		= { 18, httpService:JSONDecode([[{"FontColor":"eeffff","MainColor":"212121","AccentColor":"82aaff","BackgroundColor":"151515","OutlineColor":"424242"}]]) },
-    }
-
-    function ThemeManager:SetLibrary(library)
-        self.Library = library
-    end
-
-    --// Folders \\--
-    function ThemeManager:GetPaths()
-        local paths = {}
-
-        local parts = self.Folder:split("/")
-        for idx = 1, #parts do
-            paths[#paths + 1] = table.concat(parts, "/", 1, idx)
-        end
-
-        paths[#paths + 1] = self.Folder .. "/themes"
-        
-        return paths
-    end
-
-    function ThemeManager:BuildFolderTree()
-        local paths = self:GetPaths()
-
-        for i = 1, #paths do
-            local str = paths[i]
-            if isfolder(str) then continue end
-            makefolder(str)
-        end
-    end
-
-    function ThemeManager:CheckFolderTree()
-        if isfolder(self.Folder) then return end
-        self:BuildFolderTree()
-
-        task.wait(0.1)
-    end
-
-    function ThemeManager:SetFolder(folder)
-        self.Folder = folder
-        self:BuildFolderTree()
-    end
-    
-    --// Apply, Update theme \\--
-    function ThemeManager:ApplyTheme(theme)
-        local customThemeData = self:GetCustomTheme(theme)
-        local data = customThemeData or self.BuiltInThemes[theme]
-
-        if not data then return end
-        
-        local scheme = data[2]
-        for idx, val in pairs(customThemeData or scheme) do
-            if idx == "VideoLink" then
-                continue
-            elseif idx == "FontFace" then
-                self.Library:SetFont(Enum.Font[val])
-
-                if self.Library.Options[idx] then
-                    self.Library.Options[idx]:SetValue(val)
-                end
-            else
-                self.Library.Scheme[idx] = Color3.fromHex(val)
-            
-                if self.Library.Options[idx] then
-                    self.Library.Options[idx]:SetValueRGB(Color3.fromHex(val))
-                end
-            end
-        end
-
-        self:ThemeUpdate()
-    end
-
-    function ThemeManager:ThemeUpdate()
-        local options = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
-        for i, field in pairs(options) do
-            if self.Library.Options and self.Library.Options[field] then
-                self.Library.Scheme[field] = self.Library.Options[field].Value
-            end
-        end
-
-        self.Library:UpdateColorsUsingRegistry()
-    end
-
-    --// Get, Load, Save, Delete, Refresh \\--
-    function ThemeManager:GetCustomTheme(file)
-        local path = self.Folder .. "/themes/" .. file .. ".json"
-        if not isfile(path) then
-            return nil
-        end
-
-        local data = readfile(path)
-        local success, decoded = pcall(httpService.JSONDecode, httpService, data)
-        
-        if not success then
-            return nil
-        end
-
-        return decoded
-    end
-
-    function ThemeManager:LoadDefault()
-        local theme = "Default"
-        local content = isfile(self.Folder .. "/themes/default.txt") and readfile(self.Folder .. "/themes/default.txt")
-
-        local isDefault = true
-        if content then
-            if self.BuiltInThemes[content] then
-                theme = content
-            elseif self:GetCustomTheme(content) then
-                theme = content
-                isDefault = false
-            end
-        elseif self.BuiltInThemes[self.DefaultTheme] then
-            theme = self.DefaultTheme
-        end
-
-        if isDefault then
-            self.Library.Options.ThemeManager_ThemeList:SetValue(theme)
-        else
-            self:ApplyTheme(theme)
-        end
-    end
-
-    function ThemeManager:SaveDefault(theme)
-        writefile(self.Folder .. "/themes/default.txt", theme)
-    end
-
-    function ThemeManager:SaveCustomTheme(file)
-        if file:gsub(" ", "") == "" then
-            return self.Library:Notify("Invalid file name for theme (empty)", 3)
-        end
-
-        local theme = {}
-        local fields = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
-
-        for _, field in pairs(fields) do
-            theme[field] = self.Library.Options[field].Value:ToHex()
-        end
-        theme["FontFace"] = self.Library.Options["FontFace"].Value
-
-        writefile(self.Folder .. "/themes/" .. file .. ".json", httpService:JSONEncode(theme))
-    end
-
-    function ThemeManager:Delete(name)
-        if (not name) then
-            return false, "no config file is selected"
-        end
-
-        local file = self.Folder .. "/themes/" .. name .. ".json"
-        if not isfile(file) then return false, "invalid file" end
-
-        local success = pcall(delfile, file)
-        if not success then return false, "delete file error" end
-        
-        return true
-    end
-    
-    function ThemeManager:ReloadCustomThemes()
-        local list = listfiles(self.Folder .. "/themes")
-
-        local out = {}
-        for i = 1, #list do
-            local file = list[i]
-            if file:sub(-5) == ".json" then
-                -- i hate this but it has to be done ...
-
-                local pos = file:find(".json", 1, true)
-                local start = pos
-
-                local char = file:sub(pos, pos)
-                while char ~= "/" and char ~= "\\" and char ~= "" do
-                    pos = pos - 1
-                    char = file:sub(pos, pos)
-                end
-
-                if char == "/" or char == "\\" then
-                    table.insert(out, file:sub(pos + 1, start - 1))
-                end
-            end
-        end
-
-        return out
-    end
-
-    --// GUI \\--
-    function ThemeManager:CreateThemeManager(groupbox)
-        groupbox:AddLabel("Background color"):AddColorPicker("BackgroundColor", { Default = self.Library.Scheme.BackgroundColor })
-        groupbox:AddLabel("Main color"):AddColorPicker("MainColor", { Default = self.Library.Scheme.MainColor })
-        groupbox:AddLabel("Accent color"):AddColorPicker("AccentColor", { Default = self.Library.Scheme.AccentColor })
-        groupbox:AddLabel("Outline color"):AddColorPicker("OutlineColor", { Default = self.Library.Scheme.OutlineColor })
-        groupbox:AddLabel("Font color"):AddColorPicker("FontColor", { Default = self.Library.Scheme.FontColor })
-        groupbox:AddDropdown("FontFace", {
-            Text = "Font Face",
-            Default = "Code",
-            Values = {"BuilderSans", "Code", "Fantasy", "Gotham", "Jura", "Roboto", "RobotoMono", "SourceSans"}
-        })
-
-        
-        local ThemesArray = {}
-        for Name, Theme in pairs(self.BuiltInThemes) do
-            table.insert(ThemesArray, Name)
-        end
-
-        table.sort(ThemesArray, function(a, b) return self.BuiltInThemes[a][1] < self.BuiltInThemes[b][1] end)
-
-        groupbox:AddDivider()
-
-        groupbox:AddDropdown("ThemeManager_ThemeList", { Text = "Theme list", Values = ThemesArray, Default = 1 })
-        groupbox:AddButton("Set as default", function()
-            self:SaveDefault(self.Library.Options.ThemeManager_ThemeList.Value)
-            self.Library:Notify(string.format("Set default theme to %q", self.Library.Options.ThemeManager_ThemeList.Value))
-        end)
-
-        self.Library.Options.ThemeManager_ThemeList:OnChanged(function()
-            self:ApplyTheme(self.Library.Options.ThemeManager_ThemeList.Value)
-        end)
-
-        groupbox:AddDivider()
-
-        groupbox:AddInput("ThemeManager_CustomThemeName", { Text = "Custom theme name" })
-        groupbox:AddButton("Create theme", function() 
-            self:SaveCustomTheme(self.Library.Options.ThemeManager_CustomThemeName.Value)
-
-            self.Library.Options.ThemeManager_CustomThemeList:SetValues(self:ReloadCustomThemes())
-            self.Library.Options.ThemeManager_CustomThemeList:SetValue(nil)
-        end)
-
-        groupbox:AddDivider()
-
-        groupbox:AddDropdown("ThemeManager_CustomThemeList", { Text = "Custom themes", Values = self:ReloadCustomThemes(), AllowNull = true, Default = 1 })
-        groupbox:AddButton("Load theme", function()
-            local name = self.Library.Options.ThemeManager_CustomThemeList.Value
-
-            self:ApplyTheme(name)
-            self.Library:Notify(string.format("Loaded theme %q", name))
-        end)
-        groupbox:AddButton("Overwrite theme", function()
-            local name = self.Library.Options.ThemeManager_CustomThemeList.Value
-
-            self:SaveCustomTheme(name)
-            self.Library:Notify(string.format("Overwrote config %q", name))
-        end)
-        groupbox:AddButton("Delete theme", function()
-            local name = self.Library.Options.ThemeManager_CustomThemeList.Value
-
-            local success, err = self:Delete(name)
-            if not success then
-                return self.Library:Notify("Failed to delete theme: " .. err)
-            end
-
-            self.Library:Notify(string.format("Deleted theme %q", name))
-            self.Library.Options.ThemeManager_CustomThemeList:SetValues(self:ReloadCustomThemes())
-            self.Library.Options.ThemeManager_CustomThemeList:SetValue(nil)
-        end)
-        groupbox:AddButton("Refresh list", function()
-            self.Library.Options.ThemeManager_CustomThemeList:SetValues(self:ReloadCustomThemes())
-            self.Library.Options.ThemeManager_CustomThemeList:SetValue(nil)
-        end)
-        groupbox:AddButton("Set as default", function()
-            if self.Library.Options.ThemeManager_CustomThemeList.Value ~= nil and self.Library.Options.ThemeManager_CustomThemeList.Value ~= "" then
-                self:SaveDefault(self.Library.Options.ThemeManager_CustomThemeList.Value)
-                self.Library:Notify(string.format("Set default theme to %q", self.Library.Options.ThemeManager_CustomThemeList.Value))
-            end
-        end)
-        groupbox:AddButton("Reset default", function()
-            local success = pcall(delfile, self.Folder .. "/themes/default.txt")
-            if not success then 
-                return self.Library:Notify("Failed to reset default: delete file error")
-            end
-                
-            self.Library:Notify("Set default theme to nothing")
-            self.Library.Options.ThemeManager_CustomThemeList:SetValues(self:ReloadCustomThemes())
-            self.Library.Options.ThemeManager_CustomThemeList:SetValue(nil)
-        end)
-
-        self:LoadDefault()
-
-        local function UpdateTheme() self:ThemeUpdate() end
-        self.Library.Options.BackgroundColor:OnChanged(UpdateTheme)
-        self.Library.Options.MainColor:OnChanged(UpdateTheme)
-        self.Library.Options.AccentColor:OnChanged(UpdateTheme)
-        self.Library.Options.OutlineColor:OnChanged(UpdateTheme)
-        self.Library.Options.FontColor:OnChanged(UpdateTheme)
-        self.Library.Options.FontFace:OnChanged(function(Value)
-            self.Library:SetFont(Enum.Font[Value])
-            self.Library:UpdateColorsUsingRegistry()
-        end)
-    end
-
-    function ThemeManager:CreateGroupBox(tab)
-        assert(self.Library, "Must set ThemeManager.Library first!")
-        return tab:AddLeftGroupbox("Themes", "paintbrush")
-    end
-
-    function ThemeManager:ApplyToTab(tab)
-        assert(self.Library, "Must set ThemeManager.Library first!")
-        local groupbox = self:CreateGroupBox(tab)
-        self:CreateThemeManager(groupbox)
-    end
-
-    function ThemeManager:ApplyToGroupbox(groupbox)
-        assert(self.Library, "Must set ThemeManager.Library first!")
-        self:CreateThemeManager(groupbox)
-    end
-
-    ThemeManager:BuildFolderTree()
-end
-
-getgenv().ObsidianThemeManager = ThemeManager
-return ThemeManager
-
-end)
-local SaveManager = (function()
-	local cloneref = (cloneref or clonereference or function(instance: any) return instance end)
-local httpService = cloneref(game:GetService("HttpService"))
-local isfolder, isfile, listfiles = isfolder, isfile, listfiles
-
-if typeof(copyfunction) == "function" then
-    -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
-
-    local
-        isfolder_copy,
-        isfile_copy,
-        listfiles_copy = copyfunction(isfolder), copyfunction(isfile), copyfunction(listfiles)
-
-    local isfolder_success, isfolder_error = pcall(function()
-        return isfolder_copy("test" .. tostring(math.random(1000000, 9999999)))
-    end)
-
-    if isfolder_success == false or typeof(isfolder_error) ~= "boolean" then
-        isfolder = function(folder)
-            local success, data = pcall(isfolder_copy, folder)
-            return (if success then data else false)
-        end
-
-        isfile = function(file)
-            local success, data = pcall(isfile_copy, file)
-            return (if success then data else false)
-        end
-
-        listfiles = function(folder)
-            local success, data = pcall(listfiles_copy, folder)
-            return (if success then data else {})
-        end
-    end
-end
-
-local SaveManager = {} do
-    SaveManager.Folder = "ObsidianLibSettings"
-    SaveManager.SubFolder = ""
-    SaveManager.Ignore = {}
-    SaveManager.Library = nil
-    SaveManager.Parser = {
-        Toggle = {
-            Save = function(idx, object)
-                return { type = "Toggle", idx = idx, value = object.Value }
-            end,
-            Load = function(idx, data)
-                local object = SaveManager.Library.Toggles[idx]
-                if object and object.Value ~= data.value then
-                    object:SetValue(data.value)
-                end
-            end,
-        },
-        Slider = {
-            Save = function(idx, object)
-                return { type = "Slider", idx = idx, value = tostring(object.Value) }
-            end,
-            Load = function(idx, data)
-                local object = SaveManager.Library.Options[idx]
-                if object and object.Value ~= data.value then
-                    object:SetValue(data.value)
-                end
-            end,
-        },
-        Dropdown = {
-            Save = function(idx, object)
-                return { type = "Dropdown", idx = idx, value = object.Value, mutli = object.Multi }
-            end,
-            Load = function(idx, data)
-                local object = SaveManager.Library.Options[idx]
-                if object and object.Value ~= data.value then
-                    object:SetValue(data.value)
-                end
-            end,
-        },
-        ColorPicker = {
-            Save = function(idx, object)
-                return { type = "ColorPicker", idx = idx, value = object.Value:ToHex(), transparency = object.Transparency }
-            end,
-            Load = function(idx, data)
-                if SaveManager.Library.Options[idx] then
-                    SaveManager.Library.Options[idx]:SetValueRGB(Color3.fromHex(data.value), data.transparency)
-                end
-            end,
-        },
-        KeyPicker = {
-            Save = function(idx, object)
-                return { type = "KeyPicker", idx = idx, mode = object.Mode, key = object.Value }
-            end,
-            Load = function(idx, data)
-                if SaveManager.Library.Options[idx] then
-                    SaveManager.Library.Options[idx]:SetValue({ data.key, data.mode })
-                end
-            end,
-        },
-        Input = {
-            Save = function(idx, object)
-                return { type = "Input", idx = idx, text = object.Value }
-            end,
-            Load = function(idx, data)
-                local object = SaveManager.Library.Options[idx]
-                if object and object.Value ~= data.text and type(data.text) == "string" then
-                    SaveManager.Library.Options[idx]:SetValue(data.text)
-                end
-            end,
-        },
-    }
-
-    function SaveManager:SetLibrary(library)
-        self.Library = library
-    end
-
-    function SaveManager:IgnoreThemeSettings()
-        self:SetIgnoreIndexes({
-            "BackgroundColor", "MainColor", "AccentColor", "OutlineColor", "FontColor", "FontFace", -- themes
-            "ThemeManager_ThemeList", "ThemeManager_CustomThemeList", "ThemeManager_CustomThemeName", -- themes
-        })
-    end
-
-    --// Folders \\--
-    function SaveManager:CheckSubFolder(createFolder)
-        if typeof(self.SubFolder) ~= "string" or self.SubFolder == "" then return false end
-
-        if createFolder == true then
-            if not isfolder(self.Folder .. "/settings/" .. self.SubFolder) then
-                makefolder(self.Folder .. "/settings/" .. self.SubFolder)
-            end
-        end
-
-        return true
-    end
-
-    function SaveManager:GetPaths()
-        local paths = {}
-
-        local parts = self.Folder:split("/")
-        for idx = 1, #parts do
-            local path = table.concat(parts, "/", 1, idx)
-            if not table.find(paths, path) then paths[#paths + 1] = path end
-        end
-
-        paths[#paths + 1] = self.Folder .. "/themes"
-        paths[#paths + 1] = self.Folder .. "/settings"
-
-        if self:CheckSubFolder(false) then
-            local subFolder = self.Folder .. "/settings/" .. self.SubFolder
-            parts = subFolder:split("/")
-
-            for idx = 1, #parts do
-                local path = table.concat(parts, "/", 1, idx)
-                if not table.find(paths, path) then paths[#paths + 1] = path end
-            end
-        end
-
-        return paths
-    end
-
-    function SaveManager:BuildFolderTree()
-        local paths = self:GetPaths()
-
-        for i = 1, #paths do
-            local str = paths[i]
-            if isfolder(str) then continue end
-
-            makefolder(str)
-        end
-    end
-
-    function SaveManager:CheckFolderTree()
-        if isfolder(self.Folder) then return end
-        SaveManager:BuildFolderTree()
-
-        task.wait(0.1)
-    end
-
-    function SaveManager:SetIgnoreIndexes(list)
-        for _, key in pairs(list) do
-            self.Ignore[key] = true
-        end
-    end
-
-    function SaveManager:SetFolder(folder)
-        self.Folder = folder
-        self:BuildFolderTree()
-    end
-
-    function SaveManager:SetSubFolder(folder)
-        self.SubFolder = folder
-        self:BuildFolderTree()
-    end
-
-    --// Save, Load, Delete, Refresh \\--
-    function SaveManager:Save(name)
-        if (not name) then
-            return false, "no config file is selected"
-        end
-        SaveManager:CheckFolderTree()
-
-        local fullPath = self.Folder .. "/settings/" .. name .. ".json"
-        if SaveManager:CheckSubFolder(true) then
-            fullPath = self.Folder .. "/settings/" .. self.SubFolder .. "/" .. name .. ".json"
-        end
-
-        local data = {
-            objects = {}
-        }
-
-        for idx, toggle in pairs(self.Library.Toggles) do
-            if not toggle.Type then continue end
-            if not self.Parser[toggle.Type] then continue end
-            if self.Ignore[idx] then continue end
-
-            table.insert(data.objects, self.Parser[toggle.Type].Save(idx, toggle))
-        end
-
-        for idx, option in pairs(self.Library.Options) do
-            if not option.Type then continue end
-            if not self.Parser[option.Type] then continue end
-            if self.Ignore[idx] then continue end
-
-            table.insert(data.objects, self.Parser[option.Type].Save(idx, option))
-        end
-
-        local success, encoded = pcall(httpService.JSONEncode, httpService, data)
-        if not success then
-            return false, "failed to encode data"
-        end
-
-        writefile(fullPath, encoded)
-        return true
-    end
-
-    function SaveManager:Load(name)
-        if (not name) then
-            return false, "no config file is selected"
-        end
-        SaveManager:CheckFolderTree()
-
-        local file = self.Folder .. "/settings/" .. name .. ".json"
-        if SaveManager:CheckSubFolder(true) then
-            file = self.Folder .. "/settings/" .. self.SubFolder .. "/" .. name .. ".json"
-        end
-
-        if not isfile(file) then return false, "invalid file" end
-
-        local success, decoded = pcall(httpService.JSONDecode, httpService, readfile(file))
-        if not success then return false, "decode error" end
-
-        for _, option in pairs(decoded.objects) do
-            if not option.type then continue end
-            if not self.Parser[option.type] then continue end
-
-            task.spawn(self.Parser[option.type].Load, option.idx, option) -- task.spawn() so the config loading wont get stuck.
-        end
-
-        return true
-    end
-
-    function SaveManager:Delete(name)
-        if (not name) then
-            return false, "no config file is selected"
-        end
-
-        local file = self.Folder .. "/settings/" .. name .. ".json"
-        if SaveManager:CheckSubFolder(true) then
-            file = self.Folder .. "/settings/" .. self.SubFolder .. "/" .. name .. ".json"
-        end
-
-        if not isfile(file) then return false, "invalid file" end
-
-        local success = pcall(delfile, file)
-        if not success then return false, "delete file error" end
-
-        return true
-    end
-
-    function SaveManager:RefreshConfigList()
-        local success, data = pcall(function()
-            SaveManager:CheckFolderTree()
-
-            local list = {}
-            local out = {}
-
-            if SaveManager:CheckSubFolder(true) then
-                list = listfiles(self.Folder .. "/settings/" .. self.SubFolder)
-            else
-                list = listfiles(self.Folder .. "/settings")
-            end
-            if typeof(list) ~= "table" then list = {} end
-
-            for i = 1, #list do
-                local file = list[i]
-                if file:sub(-5) == ".json" then
-                    -- i hate this but it has to be done ...
-
-                    local pos = file:find(".json", 1, true)
-                    local start = pos
-
-                    local char = file:sub(pos, pos)
-                    while char ~= "/" and char ~= "\\" and char ~= "" do
-                        pos = pos - 1
-                        char = file:sub(pos, pos)
-                    end
-
-                    if char == "/" or char == "\\" then
-                        table.insert(out, file:sub(pos + 1, start - 1))
-                    end
-                end
-            end
-
-            return out
-        end)
-
-        if (not success) then
-            if self.Library then
-                self.Library:Notify("Failed to load config list: " .. tostring(data))
-            else
-                warn("Failed to load config list: " .. tostring(data))
-            end
-
-            return {}
-        end
-
-        return data
-    end
-
-    --// Auto Load \\--
-    function SaveManager:GetAutoloadConfig()
-        SaveManager:CheckFolderTree()
-
-        local autoLoadPath = self.Folder .. "/settings/autoload.txt"
-        if SaveManager:CheckSubFolder(true) then
-            autoLoadPath = self.Folder .. "/settings/" .. self.SubFolder .. "/autoload.txt"
-        end
-
-        if isfile(autoLoadPath) then
-            local successRead, name = pcall(readfile, autoLoadPath)
-            if not successRead then
-                return "none"
-            end
-
-            name = tostring(name)
-            return if name == "" then "none" else name
-        end
-
-        return "none"
-    end
-
-    function SaveManager:LoadAutoloadConfig()
-        SaveManager:CheckFolderTree()
-
-        local autoLoadPath = self.Folder .. "/settings/autoload.txt"
-        if SaveManager:CheckSubFolder(true) then
-            autoLoadPath = self.Folder .. "/settings/" .. self.SubFolder .. "/autoload.txt"
-        end
-
-        if isfile(autoLoadPath) then
-            local successRead, name = pcall(readfile, autoLoadPath)
-            if not successRead then
-                return self.Library:Notify("Failed to load autoload config: write file error")
-            end
-
-            local success, err = self:Load(name)
-            if not success then
-                return self.Library:Notify("Failed to load autoload config: " .. err)
-            end
-
-            self.Library:Notify(string.format("Auto loaded config %q", name))
-        end
-    end
-
-    function SaveManager:SaveAutoloadConfig(name)
-        SaveManager:CheckFolderTree()
-
-        local autoLoadPath = self.Folder .. "/settings/autoload.txt"
-        if SaveManager:CheckSubFolder(true) then
-            autoLoadPath = self.Folder .. "/settings/" .. self.SubFolder .. "/autoload.txt"
-        end
-
-        local success = pcall(writefile, autoLoadPath, name)
-        if not success then return false, "write file error" end
-
-        return true, ""
-    end
-
-    function SaveManager:DeleteAutoLoadConfig()
-        SaveManager:CheckFolderTree()
-
-        local autoLoadPath = self.Folder .. "/settings/autoload.txt"
-        if SaveManager:CheckSubFolder(true) then
-            autoLoadPath = self.Folder .. "/settings/" .. self.SubFolder .. "/autoload.txt"
-        end
-
-        local success = pcall(delfile, autoLoadPath)
-        if not success then return false, "delete file error" end
-
-        return true, ""
-    end
-
-    --// GUI \\--
-    function SaveManager:BuildConfigSection(tab)
-        assert(self.Library, "Must set SaveManager.Library")
-
-        local section = tab:AddRightGroupbox("Configuration", "folder-cog")
-
-        section:AddInput("SaveManager_ConfigName",    { Text = "Config name" })
-        section:AddButton("Create config", function()
-            local name = self.Library.Options.SaveManager_ConfigName.Value
-
-            if name:gsub(" ", "") == "" then
-                return self.Library:Notify("Invalid config name (empty)", 2)
-            end
-
-            local success, err = self:Save(name)
-            if not success then
-                return self.Library:Notify("Failed to create config: " .. err)
-            end
-
-            self.Library:Notify(string.format("Created config %q", name))
-
-            self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
-            self.Library.Options.SaveManager_ConfigList:SetValue(nil)
-        end)
-
-        section:AddDivider()
-
-        section:AddDropdown("SaveManager_ConfigList", { Text = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
-        section:AddButton("Load config", function()
-            local name = self.Library.Options.SaveManager_ConfigList.Value
-
-            local success, err = self:Load(name)
-            if not success then
-                return self.Library:Notify("Failed to load config: " .. err)
-            end
-
-            self.Library:Notify(string.format("Loaded config %q", name))
-        end)
-        section:AddButton("Overwrite config", function()
-            local name = self.Library.Options.SaveManager_ConfigList.Value
-
-            local success, err = self:Save(name)
-            if not success then
-                return self.Library:Notify("Failed to overwrite config: " .. err)
-            end
-
-            self.Library:Notify(string.format("Overwrote config %q", name))
-        end)
-
-        section:AddButton("Delete config", function()
-            local name = self.Library.Options.SaveManager_ConfigList.Value
-
-            local success, err = self:Delete(name)
-            if not success then
-                return self.Library:Notify("Failed to delete config: " .. err)
-            end
-
-            self.Library:Notify(string.format("Deleted config %q", name))
-            self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
-            self.Library.Options.SaveManager_ConfigList:SetValue(nil)
-        end)
-
-        section:AddButton("Refresh list", function()
-            self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
-            self.Library.Options.SaveManager_ConfigList:SetValue(nil)
-        end)
-
-        section:AddButton("Set as autoload", function()
-            local name = self.Library.Options.SaveManager_ConfigList.Value
-
-            local success, err = self:SaveAutoloadConfig(name)
-            if not success then
-                return self.Library:Notify("Failed to set autoload config: " .. err)
-            end
-
-            SaveManager.AutoloadLabel:SetText("Current autoload config: " .. name)
-            self.Library:Notify(string.format("Set %q to auto load", name))
-        end)
-        section:AddButton("Reset autoload", function()
-            local success, err = self:DeleteAutoLoadConfig()
-            if not success then
-                return self.Library:Notify("Failed to set autoload config: " .. err)
-            end
-
-            self.Library:Notify("Set autoload to none")
-            SaveManager.AutoloadLabel:SetText("Current autoload config: none")
-        end)
-
-        self.AutoloadLabel = section:AddLabel("Current autoload config: " .. self:GetAutoloadConfig(), true)
-
-        -- self:LoadAutoloadConfig()
-        self:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName" })
-    end
-
-    SaveManager:BuildFolderTree()
-end
-
-return SaveManager
-end)
-
-
-
---Library.ShowToggleFrameInKeybinds = true -- Make toggle keybinds work inside the keybinds UI (aka adds a toggle to the UI). Good for mobile users (Default value = true)
-
-local Window = Library:CreateWindow({
-	-- Set Center to true if you want the menu to appear in the center
-	-- Set AutoShow to true if you want the menu to appear when it is created
-	-- Set Resizable to true if you want to have in-game resizable Window
-	-- Set MobileButtonsSide to "Left" or "Right" if you want the ui toggle & lock buttons to be on the left or right side of the window
-	-- Set ShowCustomCursor to false if you don't want to use the Linoria cursor
-	-- NotifySide = Changes the side of the notifications (Left, Right) (Default value = Left)
-	-- Position and Size are also valid options here
-	-- but you do not need to define them unless you are changing them :)
-
-	Title = "mspaint",
-	Footer = "version: example",
-	Icon = 95816097006870,
-	NotifySide = "Right",
-	ShowCustomCursor = true,
-})
-
--- CALLBACK NOTE:
--- Passing in callback functions via the initial element parameters (i.e. Callback = function(Value)...) works
--- HOWEVER, using Toggles/Options.INDEX:OnChanged(function(Value) ... ) is the RECOMMENDED way to do this.
--- I strongly recommend decoupling UI code from logic code. i.e. Create your UI elements FIRST, and THEN setup :OnChanged functions later.
-
--- You do not have to set your tabs & groups up this way, just a prefrence.
--- You can find more icons in https://lucide.dev/
-local Tabs = {
-	-- Creates a new tab titled Main
-	Main = Window:AddTab("Main", "user"),
-	Key = Window:AddKeyTab("Key System"),
-	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
-}
-
-
---[[
-Example of how to add a warning box to a tab; the title AND text support rich text formatting.
-
-local WarningTab = Tabs["UI Settings"]:AddTab("Warning Box", "user")
-
-WarningTab:UpdateWarningBox({
-	Visible = true,
-	Title = "Warning",
-	Text = "This is a warning box!",
-})
-
-]]
-
--- Groupbox and Tabbox inherit the same functions
--- except Tabboxes you have to call the functions on a tab (Tabbox:AddTab(Name))
-local LeftGroupBox = Tabs.Main:AddLeftGroupbox("Groupbox", "boxes")
-
--- We can also get our Main tab via the following code:
--- local LeftGroupBox = Window.Tabs.Main:AddLeftGroupbox("Groupbox", "boxes")
-
--- Tabboxes are a tiny bit different, but here's a basic example:
---[[
-
-local TabBox = Tabs.Main:AddLeftTabbox() -- Add Tabbox on left side
-
-local Tab1 = TabBox:AddTab("Tab 1")
-local Tab2 = TabBox:AddTab("Tab 2")
-
--- You can now call AddToggle, etc on the tabs you added to the Tabbox
-]]
-
--- Groupbox:AddToggle
--- Arguments: Index, Options
-LeftGroupBox:AddToggle("MyToggle", {
-	Text = "This is a toggle",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the toggle
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the toggle while it's disabled
-
-	Default = true, -- Default value (true / false)
-	Disabled = false, -- Will disable the toggle (true / false)
-	Visible = true, -- Will make the toggle invisible (true / false)
-	Risky = false, -- Makes the text red (the color can be changed using Library.Scheme.Red) (Default value = false)
-
-	Callback = function(Value)
-		print("[cb] MyToggle changed to:", Value)
-	end,
-})
-	:AddColorPicker("ColorPicker1", {
-		Default = Color3.new(1, 0, 0),
-		Title = "Some color1", -- Optional. Allows you to have a custom color picker title (when you open it)
-		Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
-
-		Callback = function(Value)
-			print("[cb] Color changed!", Value)
-		end,
-	})
-	:AddColorPicker("ColorPicker2", {
-		Default = Color3.new(0, 1, 0),
-		Title = "Some color2",
-
-		Callback = function(Value)
-			print("[cb] Color changed!", Value)
-		end,
-	})
-
--- Fetching a toggle object for later use:
--- Toggles.MyToggle.Value
-
--- Toggles is a table added to getgenv() by the library
--- You index Toggles with the specified index, in this case it is 'MyToggle'
--- To get the state of the toggle you do toggle.Value
-
--- Calls the passed function when the toggle is updated
-Toggles.MyToggle:OnChanged(function()
-	-- here we get our toggle object & then get its value
-	print("MyToggle changed to:", Toggles.MyToggle.Value)
-end)
-
--- This should print to the console: "My toggle state changed! New value: false"
-Toggles.MyToggle:SetValue(false)
-
-LeftGroupBox:AddCheckbox("MyCheckbox", {
-	Text = "This is a checkbox",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the toggle
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the toggle while it's disabled
-
-	Default = true, -- Default value (true / false)
-	Disabled = false, -- Will disable the toggle (true / false)
-	Visible = true, -- Will make the toggle invisible (true / false)
-	Risky = false, -- Makes the text red (the color can be changed using Library.Scheme.Red) (Default value = false)
-
-	Callback = function(Value)
-		print("[cb] MyCheckbox changed to:", Value)
-	end,
-})
-
-Toggles.MyCheckbox:OnChanged(function()
-	print("MyCheckbox changed to:", Toggles.MyCheckbox.Value)
-end)
-
--- 1/15/23
--- Deprecated old way of creating buttons in favor of using a table
--- Added DoubleClick button functionality
-
---[[
-	Groupbox:AddButton
-	Arguments: {
-		Text = string,
-		Func = function,
-		DoubleClick = boolean
-		Tooltip = string,
-	}
-
-	You can call :AddButton on a button to add a SubButton!
-]]
-
-local MyButton = LeftGroupBox:AddButton({
-	Text = "Button",
-	Func = function()
-		print("You clicked a button!")
-	end,
-	DoubleClick = false,
-
-	Tooltip = "This is the main button",
-	DisabledTooltip = "I am disabled!",
-
-	Disabled = false, -- Will disable the button (true / false)
-	Visible = true, -- Will make the button invisible (true / false)
-	Risky = false, -- Makes the text red (the color can be changed using Library.Scheme.Red) (Default value = false)
-})
-
-local MyButton2 = MyButton:AddButton({
-	Text = "Sub button",
-	Func = function()
-		print("You clicked a sub button!")
-	end,
-	DoubleClick = true, -- You will have to click this button twice to trigger the callback
-	Tooltip = "This is the sub button",
-	DisabledTooltip = "I am disabled!",
-})
-
-local MyDisabledButton = LeftGroupBox:AddButton({
-	Text = "Disabled Button",
-	Func = function()
-		print("You somehow clicked a disabled button!")
-	end,
-	DoubleClick = false,
-	Tooltip = "This is a disabled button",
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the button while it's disabled
-	Disabled = true,
-})
-
---[[
-	NOTE: You can chain the button methods!
-	EXAMPLE:
-
-	LeftGroupBox:AddButton({ Text = 'Kill all', Func = Functions.KillAll, Tooltip = 'This will kill everyone in the game!' })
-		:AddButton({ Text = 'Kick all', Func = Functions.KickAll, Tooltip = 'This will kick everyone in the game!' })
-]]
-
--- Groupbox:AddLabel
--- Arguments: Text, DoesWrap, Idx
--- Arguments: Idx, Options
-LeftGroupBox:AddLabel("This is a label")
-LeftGroupBox:AddLabel("This is a label\n\nwhich wraps its text!", true)
-LeftGroupBox:AddLabel("This is a label exposed to Labels", true, "TestLabel")
-LeftGroupBox:AddLabel("SecondTestLabel", {
-	Text = "This is a label made with table options and an index",
-	DoesWrap = true, -- Defaults to false
-})
-
-LeftGroupBox:AddLabel("SecondTestLabel", {
-	Text = "This is a label that doesn't wrap it's own text",
-	DoesWrap = false, -- Defaults to false
-})
-
--- Options is a table added to getgenv() by the library
--- You index Options with the specified index, in this case it is 'SecondTestLabel' & 'TestLabel'
--- To set the text of the label you do label:SetText
-
--- Options.TestLabel:SetText("first changed!")
--- Options.SecondTestLabel:SetText("second changed!")
-
--- Groupbox:AddDivider
--- Arguments: None
-LeftGroupBox:AddDivider()
-
---[[
-	Groupbox:AddSlider
-	Arguments: Idx, SliderOptions
-
-	SliderOptions: {
-		Text = string,
-		Default = number,
-		Min = number,
-		Max = number,
-		Suffix = string,
-		Rounding = number,
-		Compact = boolean,
-		HideMax = boolean,
-	}
-
-	Text, Default, Min, Max, Rounding must be specified.
-	Suffix is optional.
-	Rounding is the number of decimal places for precision.
-
-	Compact will hide the title label of the Slider
-
-	HideMax will only display the value instead of the value & max value of the slider
-	Compact will do the same thing
-]]
-LeftGroupBox:AddSlider("MySlider", {
-	Text = "This is my slider!",
-	Default = 0,
-	Min = 0,
-	Max = 5,
-	Rounding = 1,
-	Compact = false,
-
-	Callback = function(Value)
-		print("[cb] MySlider was changed! New value:", Value)
-	end,
-
-	Tooltip = "I am a slider!", -- Information shown when you hover over the slider
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the slider while it's disabled
-
-	Disabled = false, -- Will disable the slider (true / false)
-	Visible = true, -- Will make the slider invisible (true / false)
-})
-
--- Options is a table added to getgenv() by the library
--- You index Options with the specified index, in this case it is 'MySlider'
--- To get the value of the slider you do slider.Value
-
-local Number = Options.MySlider.Value
-Options.MySlider:OnChanged(function()
-	print("MySlider was changed! New value:", Options.MySlider.Value)
-end)
-
--- This should print to the console: "MySlider was changed! New value: 3"
-Options.MySlider:SetValue(3)
-
--- Groupbox:AddInput
--- Arguments: Idx, Info
-LeftGroupBox:AddInput("MyTextbox", {
-	Default = "My textbox!",
-	Numeric = false, -- true / false, only allows numbers
-	Finished = false, -- true / false, only calls callback when you press enter
-	ClearTextOnFocus = true, -- true / false, if false the text will not clear when textbox focused
-
-	Text = "This is a textbox",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the textbox
-
-	Placeholder = "Placeholder text", -- placeholder text when the box is empty
-	-- MaxLength is also an option which is the max length of the text
-
-	Callback = function(Value)
-		print("[cb] Text updated. New text:", Value)
-	end,
-})
-
-Options.MyTextbox:OnChanged(function()
-	print("Text updated. New text:", Options.MyTextbox.Value)
-end)
-
--- Groupbox:AddDropdown
--- Arguments: Idx, Info
-
-local DropdownGroupBox = Tabs.Main:AddRightGroupbox("Dropdowns")
-
-DropdownGroupBox:AddDropdown("MyDropdown", {
-	Values = { "This", "is", "a", "dropdown" },
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	Text = "A dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	Searchable = false, -- true / false, makes the dropdown searchable (great for a long list of values)
-
-	Callback = function(Value)
-		print("[cb] Dropdown got changed. New value:", Value)
-	end,
-
-	Disabled = false, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
-Options.MyDropdown:OnChanged(function()
-	print("Dropdown got changed. New value:", Options.MyDropdown.Value)
-end)
-
-Options.MyDropdown:SetValue("This")
-
-DropdownGroupBox:AddDropdown("MySearchableDropdown", {
-	Values = { "This", "is", "a", "searchable", "dropdown" },
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	Text = "A searchable dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	Searchable = true, -- true / false, makes the dropdown searchable (great for a long list of values)
-
-	Callback = function(Value)
-		print("[cb] Dropdown got changed. New value:", Value)
-	end,
-
-	Disabled = false, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
-DropdownGroupBox:AddDropdown("MyDisplayFormattedDropdown", {
-	Values = { "This", "is", "a", "formatted", "dropdown" },
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	Text = "A display formatted dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	FormatDisplayValue = function(Value) -- You can change the display value for any values. The value will be still same, only the UI changes.
-		if Value == "formatted" then
-			return "display formatted" -- formatted -> display formatted but in Options.MyDisplayFormattedDropdown.Value it will still return formatted if its selected.
-		end
-
-		return Value
-	end,
-
-	Searchable = false, -- true / false, makes the dropdown searchable (great for a long list of values)
-
-	Callback = function(Value)
-		print("[cb] Display formatted dropdown got changed. New value:", Value)
-	end,
-
-	Disabled = false, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
--- Multi dropdowns
-DropdownGroupBox:AddDropdown("MyMultiDropdown", {
-	-- Default is the numeric index (e.g. "This" would be 1 since it if first in the values list)
-	-- Default also accepts a string as well
-
-	-- Currently you can not set multiple values with a dropdown
-
-	Values = { "This", "is", "a", "dropdown" },
-	Default = 1,
-	Multi = true, -- true / false, allows multiple choices to be selected
-
-	Text = "A multi dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-
-	Callback = function(Value)
-		print("[cb] Multi dropdown got changed:")
-		for key, value in next, Options.MyMultiDropdown.Value do
-			print(key, value) -- should print something like This, true
-		end
-	end,
-})
-
-Options.MyMultiDropdown:SetValue({
-	This = true,
-	is = true,
-})
-
-DropdownGroupBox:AddDropdown("MyDisabledDropdown", {
-	Values = { "This", "is", "a", "dropdown" },
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	Text = "A disabled dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	Callback = function(Value)
-		print("[cb] Disabled dropdown got changed. New value:", Value)
-	end,
-
-	Disabled = true, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
-DropdownGroupBox:AddDropdown("MyDisabledValueDropdown", {
-	Values = { "This", "is", "a", "dropdown", "with", "disabled", "value" },
-	DisabledValues = { "disabled" }, -- Disabled Values that are unclickable
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	Text = "A dropdown with disabled value",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	Callback = function(Value)
-		print("[cb] Dropdown with disabled value got changed. New value:", Value)
-	end,
-
-	Disabled = false, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
-DropdownGroupBox:AddDropdown("MyVeryLongDropdown", {
-	Values = {
-		"This",
-		"is",
-		"a",
-		"very",
-		"long",
-		"dropdown",
-		"with",
-		"a",
-		"lot",
-		"of",
-		"values",
-		"but",
-		"you",
-		"can",
-		"see",
-		"more",
-		"than",
-		"8",
-		"values",
-	},
-	Default = 1, -- number index of the value / string
-	Multi = false, -- true / false, allows multiple choices to be selected
-
-	MaxVisibleDropdownItems = 12, -- Default: 8, allows you to change the size of the dropdown list
-
-	Text = "A very long dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the dropdown while it's disabled
-
-	Searchable = false, -- true / false, makes the dropdown searchable (great for a long list of values)
-
-	Callback = function(Value)
-		print("[cb] Very long dropdown got changed. New value:", Value)
-	end,
-
-	Disabled = false, -- Will disable the dropdown (true / false)
-	Visible = true, -- Will make the dropdown invisible (true / false)
-})
-
-DropdownGroupBox:AddDropdown("MyPlayerDropdown", {
-	SpecialType = "Player",
-	ExcludeLocalPlayer = true, -- true / false, excludes the localplayer from the Player type
-	Text = "A player dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-
-	Callback = function(Value)
-		print("[cb] Player dropdown got changed:", Value)
-	end,
-})
-
-DropdownGroupBox:AddDropdown("MyTeamDropdown", {
-	SpecialType = "Team",
-	Text = "A team dropdown",
-	Tooltip = "This is a tooltip", -- Information shown when you hover over the dropdown
-
-	Callback = function(Value)
-		print("[cb] Team dropdown got changed:", Value)
-	end,
-})
-
--- Label:AddColorPicker
--- Arguments: Idx, Info
-
--- You can also ColorPicker & KeyPicker to a Toggle as well
-
-LeftGroupBox:AddLabel("Color"):AddColorPicker("ColorPicker", {
-	Default = Color3.new(0, 1, 0), -- Bright green
-	Title = "Some color", -- Optional. Allows you to have a custom color picker title (when you open it)
-	Transparency = 0, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
-
-	Callback = function(Value)
-		print("[cb] Color changed!", Value)
-	end,
-})
-
-Options.ColorPicker:OnChanged(function()
-	print("Color changed!", Options.ColorPicker.Value)
-	print("Transparency changed!", Options.ColorPicker.Transparency)
-end)
-
-Options.ColorPicker:SetValueRGB(Color3.fromRGB(0, 255, 140))
-
--- Label:AddKeyPicker
--- Arguments: Idx, Info
-
-LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
-	-- SyncToggleState only works with toggles.
-	-- It allows you to make a keybind which has its state synced with its parent toggle
-
-	-- Example: Keybind which you use to toggle flyhack, etc.
-	-- Changing the toggle disables the keybind state and toggling the keybind switches the toggle state
-
-	Default = "MB2", -- String as the name of the keybind (MB1, MB2 for mouse buttons)
-	SyncToggleState = false,
-
-	-- You can define custom Modes but I have never had a use for it.
-	Mode = "Toggle", -- Modes: Always, Toggle, Hold
-
-	Text = "Auto lockpick safes", -- Text to display in the keybind menu
-	NoUI = false, -- Set to true if you want to hide from the Keybind menu,
-
-	-- Occurs when the keybind is clicked, Value is `true`/`false`
-	Callback = function(Value)
-		print("[cb] Keybind clicked!", Value)
-	end,
-
-	-- Occurs when the keybind itself is changed, `New` is a KeyCode Enum OR a UserInputType Enum
-	ChangedCallback = function(New)
-		print("[cb] Keybind changed!", New)
-	end,
-})
-
--- OnClick is only fired when you press the keybind and the mode is Toggle
--- Otherwise, you will have to use Keybind:GetState()
-Options.KeyPicker:OnClick(function()
-	print("Keybind clicked!", Options.KeyPicker:GetState())
-end)
-
-Options.KeyPicker:OnChanged(function()
-	print("Keybind changed!", Options.KeyPicker.Value)
-end)
-
-task.spawn(function()
-	while true do
-		wait(1)
-
-		-- example for checking if a keybind is being pressed
-		local state = Options.KeyPicker:GetState()
-		if state then
-			print("KeyPicker is being held down")
-		end
-
-		if Library.Unloaded then
-			break
-		end
-	end
-end)
-
-Options.KeyPicker:SetValue({ "MB2", "Hold" }) -- Sets keybind to MB2, mode to Hold
-
--- Long text label to demonstrate UI scrolling behaviour.
-local LeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Groupbox #2")
-LeftGroupBox2:AddLabel(
-	"This label spans multiple lines! We're gonna run out of UI space...\nJust kidding! Scroll down!\n\n\nHello from below!",
-	true
-)
-
-local TabBox = Tabs.Main:AddRightTabbox() -- Add Tabbox on right side
-
--- Anything we can do in a Groupbox, we can do in a Tabbox tab (AddToggle, AddSlider, AddLabel, etc etc...)
-local Tab1 = TabBox:AddTab("Tab 1")
-Tab1:AddToggle("Tab1Toggle", { Text = "Tab1 Toggle" })
-
-local Tab2 = TabBox:AddTab("Tab 2")
-Tab2:AddToggle("Tab2Toggle", { Text = "Tab2 Toggle" })
-
-Library:OnUnload(function()
-	print("Unloaded!")
-end)
-
--- Anything we can do in a Groupbox, we can do in a Key tab (AddToggle, AddSlider, AddLabel, etc etc...)
-Tabs.Key:AddLabel({
-	Text = "Key: Banana",
-	DoesWrap = true,
-	Size = 16,
-})
-
-Tabs.Key:AddKeyBox("Banana", function(Success, ReceivedKey)
-	print("Expected Key: Banana - Received Key:", ReceivedKey, "| Success:", Success)
-	Library:Notify({
-		Title = "Expected Key: Banana",
-		Description = "Received Key: " .. ReceivedKey .. "\nSuccess: " .. tostring(Success),
-		Time = 4,
-	})
-end)
-
-Tabs.Key:AddLabel({
-	Text = "No Key",
-	DoesWrap = true,
-	Size = 16,
-})
-
-Tabs.Key:AddKeyBox(function(Success, ReceivedKey)
-	print("Expected Key: None | Success:", Success) -- true
-	Library:Notify("Success: " .. tostring(Success), 4)
-end)
-
--- UI Settings
-local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
-
-MenuGroup:AddToggle("KeybindMenuOpen", {
-	Default = Library.KeybindFrame.Visible,
-	Text = "Open Keybind Menu",
-	Callback = function(value)
-		Library.KeybindFrame.Visible = value
-	end,
-})
-MenuGroup:AddToggle("ShowCustomCursor", {
-	Text = "Custom Cursor",
-	Default = true,
-	Callback = function(Value)
-		Library.ShowCustomCursor = Value
-	end,
-})
-MenuGroup:AddDropdown("NotificationSide", {
-	Values = { "Left", "Right" },
-	Default = "Right",
-
-	Text = "Notification Side",
-
-	Callback = function(Value)
-		Library:SetNotifySide(Value)
-	end,
-})
-MenuGroup:AddDropdown("DPIDropdown", {
-	Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
-	Default = "100%",
-
-	Text = "DPI Scale",
-
-	Callback = function(Value)
-		Value = Value:gsub("%%", "")
-		local DPI = tonumber(Value)
-
-		Library:SetDPIScale(DPI)
-	end,
-})
-MenuGroup:AddDivider()
-MenuGroup:AddLabel("Menu bind")
-	:AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
-
-MenuGroup:AddButton("Unload", function()
-	Library:Unload()
-end)
-
-Library.ToggleKeybind = Options.MenuKeybind -- Allows you to have a custom keybind for the menu
-
--- Addons:
--- SaveManager (Allows you to have a configuration system)
--- ThemeManager (Allows you to have a menu theme system)
-
--- Hand the library over to our managers
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-
--- Ignore keys that are used by ThemeManager.
--- (we dont want configs to save themes, do we?)
-SaveManager:IgnoreThemeSettings()
-
--- Adds our MenuKeybind to the ignore list
--- (do you want each config to have a different menu key? probably not.)
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-
--- use case for doing it this way:
--- a script hub could have themes in a global folder
--- and game configs in a separate folder per game
-ThemeManager:SetFolder("MyScriptHub")
-SaveManager:SetFolder("MyScriptHub/specific-game")
-SaveManager:SetSubFolder("specific-place") -- if the game has multiple places inside of it (for example: DOORS)
--- you can use this to save configs for those places separately
--- The path in this script would be: MyScriptHub/specific-game/settings/specific-place
--- [ This is optional ]
-
--- Builds our config menu on the right side of our tab
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-
--- Builds our theme menu (with plenty of built in themes) on the left side
--- NOTE: you can also call ThemeManager:ApplyToGroupbox to add it to a specific groupbox
-ThemeManager:ApplyToTab(Tabs["UI Settings"])
-
--- You can use the SaveManager:LoadAutoloadConfig() to load a config
--- which has been marked to be one that auto loads!
-SaveManager:LoadAutoloadConfig()
